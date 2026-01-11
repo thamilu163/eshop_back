@@ -1,0 +1,103 @@
+version: "3.9"
+
+# ══════════════════════════════════════════════════════════════
+# LOCAL DEVELOPMENT SETUP
+# - Keycloak + Redis in Docker
+# - Spring Boot backend runs locally (not in container)
+# ══════════════════════════════════════════════════════════════
+
+services:
+  # ══════════════════════════════════════════════════════════════
+  # Redis Cache
+  # ══════════════════════════════════════════════════════════════
+  redis:
+    image: redis:7-alpine
+    container_name: eshop-redis-dev
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_dev_data:/data
+    networks:
+      - eshop-dev-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+  # ══════════════════════════════════════════════════════════════
+  # PostgreSQL Database (Optional - if you want DB in Docker too)
+  # ══════════════════════════════════════════════════════════════
+  postgres:
+    image: postgres:16-alpine
+    container_name: eshop-postgres-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: eshop_Dev
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: thamilu*884*
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+    networks:
+      - eshop-dev-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # ══════════════════════════════════════════════════════════════
+  # Keycloak - Authentication Server
+  # ══════════════════════════════════════════════════════════════
+  keycloak:
+    image: quay.io/keycloak/keycloak:23.0
+    container_name: eshop-keycloak-dev
+    restart: unless-stopped
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/eshop_Dev
+      KC_DB_USERNAME: postgres
+      KC_DB_PASSWORD: thamilu*884*
+      KC_HOSTNAME: localhost
+      KC_HTTP_ENABLED: true
+      KC_PROXY: edge
+    ports:
+      - "8080:8080"
+    command:
+      - start-dev
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - eshop-dev-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+# ══════════════════════════════════════════════════════════════
+# Volumes - Persistent Data Storage
+# ══════════════════════════════════════════════════════════════
+volumes:
+  redis_dev_data:
+    driver: local
+  postgres_dev_data:
+    driver: local
+
+# ══════════════════════════════════════════════════════════════
+# Networks - Container Communication
+# ══════════════════════════════════════════════════════════════
+networks:
+  eshop-dev-net:
+    driver: bridge
+    name: eshop-dev-network

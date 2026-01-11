@@ -1,0 +1,154 @@
+version: "3.9"
+
+services:
+  # ══════════════════════════════════════════════════════════════
+  # Redis Cache - Primary caching layer
+  # ══════════════════════════════════════════════════════════════
+  redis:
+    image: redis:7-alpine
+    container_name: eshop-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-}
+    volumes:
+      - redis_data:/data
+    networks:
+      - eshop-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+  # ══════════════════════════════════════════════════════════════
+  # PostgreSQL Database
+  # ══════════════════════════════════════════════════════════════
+  postgres:
+    image: postgres:16-alpine
+    container_name: eshop-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-eshop_db}
+      POSTGRES_USER: ${DATABASE_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:-postgres}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=en_US.UTF-8"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - eshop-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USERNAME:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # ══════════════════════════════════════════════════════════════
+  # Keycloak - Authentication Server
+  # ══════════════════════════════════════════════════════════════
+  keycloak:
+    image: quay.io/keycloak/keycloak:23.0
+    container_name: eshop-keycloak
+    restart: unless-stopped
+    environment:
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-eshop_db}
+      KC_DB_USERNAME: ${DATABASE_USERNAME:-postgres}
+      KC_DB_PASSWORD: ${DATABASE_PASSWORD:-postgres}
+      KC_HOSTNAME: localhost
+      KC_HTTP_ENABLED: true
+      KC_PROXY: edge
+    ports:
+      - "8080:8080"
+    command:
+      - start-dev
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - eshop-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # ══════════════════════════════════════════════════════════════
+  # Spring Boot Backend - EShop API
+  # ══════════════════════════════════════════════════════════════
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: eshop-backend:latest
+    container_name: eshop-backend
+    restart: unless-stopped
+    ports:
+      - "8082:8082"
+    environment:
+      # Spring Profile
+      SPRING_PROFILES_ACTIVE: docker
+      
+      # Database Configuration
+      DATABASE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-eshop_db}
+      DATABASE_USERNAME: ${DATABASE_USERNAME:-postgres}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:-postgres}
+      
+      # Redis Configuration (⚠️ CRITICAL: Use service name)
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      
+      # Keycloak Configuration
+      KEYCLOAK_ISSUER_URI: http://keycloak:8080/realms/eshop
+      KEYCLOAK_JWK_URI: http://keycloak:8080/realms/eshop/protocol/openid-connect/certs
+      
+      # JVM Options
+      JAVA_OPTS: >
+        -XX:+UseContainerSupport
+        -XX:MaxRAMPercentage=75.0
+        -XX:+UseG1GC
+        -XX:+UseStringDeduplication
+        -Djava.security.egd=file:/dev/./urandom
+    volumes:
+      - ./logs:/var/log/eshop
+      - ./uploads:/var/eshop/uploads
+    networks:
+      - eshop-net
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8082/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+
+# ══════════════════════════════════════════════════════════════
+# Volumes - Persistent Data Storage
+# ══════════════════════════════════════════════════════════════
+volumes:
+  redis_data:
+    driver: local
+  postgres_data:
+    driver: local
+
+# ══════════════════════════════════════════════════════════════
+# Networks - Container Communication
+# ══════════════════════════════════════════════════════════════
+networks:
+  eshop-net:
+    driver: bridge
+    name: eshop-network
