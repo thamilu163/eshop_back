@@ -12,9 +12,9 @@ import java.util.Optional;
 @Repository
 public interface SellerProfileRepository extends JpaRepository<SellerProfile, Long> {
     
-    Optional<SellerProfile> findByUserId(Long userId);
+    Optional<SellerProfile> findByUser_Id(Long userId);
     
-    boolean existsByUserId(Long userId);
+    boolean existsByUser_Id(Long userId);
     
     @Query("SELECT COUNT(sp) FROM SellerProfile sp WHERE sp.sellerType = :type")
     long countBySellerType(@Param("type") User.SellerType type);

@@ -255,6 +255,6 @@ public class KeycloakAuthController {
                 .message(error_description != null ? error_description : "Authentication failed")
                 .build();
         
-        return ResponseEntity.badRequest().body(response);
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
     }
 }

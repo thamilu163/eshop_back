@@ -14,7 +14,8 @@ import java.util.stream.Collectors;
  */
 public final class SecurityUtils {
 
-    private SecurityUtils() {}
+    private SecurityUtils() {
+    }
 
     public static Optional<Authentication> getCurrentAuthentication() {
         return Optional.ofNullable(SecurityContextHolder.getContext().getAuthentication());
@@ -44,7 +45,8 @@ public final class SecurityUtils {
     }
 
     public static boolean hasAnyRole(String... roles) {
-        if (roles == null || roles.length == 0) return false;
+        if (roles == null || roles.length == 0)
+            return false;
         return getCurrentAuthentication()
                 .map(Authentication::getAuthorities)
                 .map(authorities -> {
@@ -52,11 +54,34 @@ public final class SecurityUtils {
                             .map(GrantedAuthority::getAuthority)
                             .collect(Collectors.toSet());
                     for (String role : roles) {
-                        if (userAuthorities.contains("ROLE_" + role) || userAuthorities.contains(role)) return true;
+                        if (userAuthorities.contains("ROLE_" + role) || userAuthorities.contains(role))
+                            return true;
                     }
                     return false;
                 })
                 .orElse(false);
+    }
+
+    public static Long getAuthenticatedUserId() {
+        return getCurrentAuthentication()
+                .map(auth -> {
+                    Object principal = auth.getPrincipal();
+                    if (principal instanceof com.eshop.app.config.EnhancedSecurityConfig.PrincipalDetails pd) {
+                        return pd.getId();
+                    } else if (principal instanceof com.eshop.app.security.UserDetailsImpl ud) {
+                        return ud.getId();
+                    } else if (principal instanceof Jwt jwt) {
+                        // Fallback: try to parse subject as Long if no specific principal object
+                        try {
+                            return Long.valueOf(jwt.getSubject());
+                        } catch (NumberFormatException e) {
+                            return null;
+                        }
+                    }
+                    return null;
+                })
+                .orElseThrow(
+                        () -> new org.springframework.security.access.AccessDeniedException("User not authenticated"));
     }
 
     public static Optional<Jwt> getCurrentJwt() {

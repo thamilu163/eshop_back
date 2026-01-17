@@ -16,16 +16,16 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class WishlistResponse {
-    
+
     private Long id;
     private Long userId;
     private Long productId;
     private String notes;
     private LocalDateTime createdAt;
-    
+
     // Product details (when included)
     private ProductDetails product;
-    
+
     @Data
     @Builder
     @NoArgsConstructor
@@ -40,11 +40,11 @@ public class WishlistResponse {
         private Boolean isActive;
         private Integer stockQuantity;
         private Boolean inStock;
-        private String shopName;
+        private String storeName;
         private String categoryName;
         private Double averageRating;
         private Integer reviewCount;
-        
+
         // Availability status
         private Boolean isAvailable;
         private String availabilityMessage;

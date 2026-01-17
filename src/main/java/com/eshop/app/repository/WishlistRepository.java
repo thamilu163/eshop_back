@@ -56,14 +56,14 @@ public interface WishlistRepository extends JpaRepository<Wishlist, Long> {
     /**
      * Find wishlist items with detailed product information
      */
-    @Query("SELECT w FROM Wishlist w JOIN FETCH w.product p JOIN FETCH p.shop WHERE w.user.id = :userId")
+    @Query("SELECT w FROM Wishlist w JOIN FETCH w.product p JOIN FETCH p.store WHERE w.user.id = :userId")
     List<Wishlist> findByUserIdWithProductDetails(@Param("userId") Long userId);
     
     /**
-     * Find wishlist items for products from a specific shop
+     * Find wishlist items for products from a specific store
      */
-    @Query("SELECT w FROM Wishlist w JOIN w.product p WHERE w.user.id = :userId AND p.shop.id = :shopId")
-    List<Wishlist> findByUserIdAndShopId(@Param("userId") Long userId, @Param("shopId") Long shopId);
+    @Query("SELECT w FROM Wishlist w JOIN w.product p WHERE w.user.id = :userId AND p.store.id = :storeId")
+    List<Wishlist> findByUserIdAndStoreId(@Param("userId") Long userId, @Param("storeId") Long storeId);
     
     /**
      * Find wishlist items for products from a specific category
@@ -86,10 +86,10 @@ public interface WishlistRepository extends JpaRepository<Wishlist, Long> {
     List<Object[]> getWishlistStatisticsByCategory();
     
     /**
-     * Find users who wishlisted products from a specific shop
+     * Find users who wishlisted products from a specific store
      */
-    @Query("SELECT DISTINCT w.user FROM Wishlist w JOIN w.product p WHERE p.shop.id = :shopId")
-    List<Object> findUsersWhoWishlistedFromShop(@Param("shopId") Long shopId);
+    @Query("SELECT DISTINCT w.user FROM Wishlist w JOIN w.product p WHERE p.store.id = :storeId")
+    List<Object> findUsersWhoWishlistedFromStore(@Param("storeId") Long storeId);
     
     /**
      * Delete wishlist item by user and product

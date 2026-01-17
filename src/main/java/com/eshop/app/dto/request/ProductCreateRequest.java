@@ -165,8 +165,8 @@ public class ProductCreateRequest {
         description = "Shop/Store ID (optional - auto-resolved from authenticated seller)",
         example = "1"
     )
-    @Positive(message = "Shop ID must be positive")
-    private Long shopId;
+    @Positive(message = "Store ID must be positive")
+    private Long storeId;
     
     // ==================== TAGS & FEATURES ====================
     

@@ -22,7 +22,7 @@ class ProductServiceImplTest {
     @Mock
     private com.eshop.app.repository.BrandRepository brandRepository;
     @Mock
-    private com.eshop.app.repository.ShopRepository shopRepository;
+    private com.eshop.app.repository.StoreRepository storeRepository;
     @Mock
     private com.eshop.app.repository.TagRepository tagRepository;
     @Mock
@@ -54,9 +54,10 @@ class ProductServiceImplTest {
         request.setName("Test Product");
         request.setPrice(new java.math.BigDecimal("1.00"));
         request.setCategoryId(1L);
-        request.setShopId(1L);
+        request.setStoreId(1L);
         when(productRepository.existsBySku("DUPLICATE")).thenReturn(true);
-        assertThrows(com.eshop.app.exception.DuplicateSkuException.class, () -> productService.createProduct(request, "test-user-id"));
+        assertThrows(com.eshop.app.exception.DuplicateSkuException.class,
+                () -> productService.createProduct(request, "test-user-id"));
     }
 
     @Test
@@ -66,11 +67,12 @@ class ProductServiceImplTest {
         request.setName("Retry Product");
         request.setPrice(new java.math.BigDecimal("2.00"));
         request.setCategoryId(1L);
-        request.setShopId(1L);
+        request.setStoreId(1L);
         when(productRepository.existsBySku("RETRY")).thenReturn(false);
         when(categoryRepository.findById(anyLong())).thenThrow(new OptimisticLockingFailureException("fail"));
         assertThrows(RuntimeException.class, () -> productService.createProduct(request, "test-user-id"));
-        // In Mockito-only tests the Spring Retry AOP may not be applied; verify that the method was at least attempted
+        // In Mockito-only tests the Spring Retry AOP may not be applied; verify that
+        // the method was at least attempted
         verify(categoryRepository, atLeast(1)).findById(anyLong());
     }
 }

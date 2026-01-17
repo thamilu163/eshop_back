@@ -37,7 +37,7 @@ public class ProductLocationController {
             
             **Features:**
             - 📍 Search within radius (default 10km, max 500km)
-            - 🏪 Filter by specific shops or find nearest shops
+            - 🏪 Filter by specific stores or find nearest stores
             - 💰 Filter by price range
             - 🏷️ Filter by category and brand
             - 🌎 Filter by city, state, or country
@@ -52,12 +52,12 @@ public class ProductLocationController {
             **Example Use Cases:**
             1. "Find laptops within 5km of my location"
             2. "Show all electronics in San Francisco sorted by price"
-            3. "Find nearest shops selling shoes under $100"
+            3. "Find nearest stores selling shoes under $100"
             4. "Products available in California with rating > 4"
             
             **Google Maps Integration:**
             - Use Google Maps Geolocation API to get user's current location
-            - Use Google Places API to geocode shop addresses
+            - Use Google Places API to geocode store addresses
             - Frontend can display results on Google Maps with markers
             """,
         security = @SecurityRequirement(name = "bearer-jwt")
@@ -105,7 +105,7 @@ public class ProductLocationController {
             - keyword: Search term for products
             - city, state, country: Location filters
             - minPrice, maxPrice: Price range
-            - categoryId, brandId, shopId: Entity filters
+            - categoryId, brandId, storeId: Entity filters
             - inStockOnly: Show only available products (default: false)
             - sortBy: distance, price_asc, price_desc, rating, newest
             - page, size: Pagination parameters
@@ -157,8 +157,8 @@ public class ProductLocationController {
             @Parameter(description = "Country filter", example = "USA")
             @RequestParam(required = false) String country,
             
-            @Parameter(description = "Shop ID", example = "1")
-            @RequestParam(required = false) Long shopId,
+            @Parameter(description = "Store ID", example = "1")
+            @RequestParam(required = false) Long storeId,
             
             @Parameter(description = "Show only in-stock products", example = "true")
             @RequestParam(defaultValue = "false") Boolean inStockOnly,
@@ -182,7 +182,7 @@ public class ProductLocationController {
             .city(city)
             .state(state)
             .country(country)
-            .shopId(shopId)
+            .storeId(storeId)
             .inStockOnly(inStockOnly)
             .sortBy(sortBy)
             .page(page)
@@ -202,9 +202,9 @@ public class ProductLocationController {
             Returns distance in both kilometers and miles.
             
             **Use Cases:**
-            - Calculate distance from user to shop
+            - Calculate distance from user to store
             - Estimate delivery distance
-            - Sort shops by proximity
+            - Sort stores by proximity
             """
     )
     @ApiResponse(
@@ -230,22 +230,22 @@ public class ProductLocationController {
         return ResponseEntity.ok(new DistanceResponse(distanceKm, distanceMiles));
     }
     
-    @GetMapping("/nearby-shops")
+    @GetMapping("/nearby-stores")
     @Operation(
-        summary = "Find nearby shops",
+        summary = "Find nearby stores",
         description = """
-            Find all shops within specified radius from user's location.
-            Returns shops sorted by distance.
+            Find all stores within specified radius from user's location.
+            Returns stores sorted by distance.
             
             **Frontend Integration:**
-            - Display shops on Google Maps with markers
-            - Show distance to each shop
-            - Allow users to filter products by selected shop
+            - Display stores on Google Maps with markers
+            - Show distance to each store
+            - Allow users to filter products by selected store
             """,
         security = @SecurityRequirement(name = "bearer-jwt")
     )
     @PreAuthorize("hasAnyRole('CUSTOMER', 'SELLER', 'ADMIN')")
-    public ResponseEntity<Page<ProductLocationResponse>> findNearbyShops(
+    public ResponseEntity<Page<ProductLocationResponse>> findNearbyStores(
             @Parameter(description = "User's latitude", required = true)
             @RequestParam Double latitude,
             

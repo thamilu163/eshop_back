@@ -14,18 +14,18 @@ public class SellerDashboardService {
 
     private final com.eshop.app.service.ProductService productService;
     private final com.eshop.app.service.OrderService orderService;
-    @SuppressWarnings("unused") // Reserved for future shop-related features
-    private final com.eshop.app.service.ShopService shopService;
+    @SuppressWarnings("unused") // Reserved for future store-related features
+    private final com.eshop.app.service.StoreService storeService;
         private final Executor dashboardExecutor;
         private final com.eshop.app.service.analytics.SellerAggregationService sellerAggregationService;
 
     public SellerDashboardResponse getDashboard(Long sellerId) {
-        SellerDashboardResponse.ShopOverview shopOverview = sellerAggregationService.buildShopOverview(sellerId);
+        SellerDashboardResponse.StoreOverview storeOverview = sellerAggregationService.buildStoreOverview(sellerId);
         SellerDashboardResponse.SalesMetrics sales = sellerAggregationService.buildSalesMetrics(sellerId);
         SellerDashboardResponse.OrderManagement om = sellerAggregationService.buildOrderManagement(sellerId);
 
         return SellerDashboardResponse.builder()
-                .shopOverview(shopOverview)
+                .storeOverview(storeOverview)
                 .salesMetrics(sales)
                 .orderManagement(om)
                 .topProducts(productService.getTopSellingProductsBySellerId(sellerId, 5))

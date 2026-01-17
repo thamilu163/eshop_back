@@ -12,5 +12,6 @@ public interface UserMapper {
 
     @Mapping(target = "role", source = "role")
     @Mapping(target = "sellerType", source = "sellerType")
+    @Mapping(target = "shop", source = "store")
     UserResponse toUserResponse(User user);
 }

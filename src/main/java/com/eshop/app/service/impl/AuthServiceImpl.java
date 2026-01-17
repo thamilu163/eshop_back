@@ -27,7 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Transactional
 public class AuthServiceImpl implements AuthService {
-    
+
     private final UserRepository userRepository;
     private final CartRepository cartRepository;
     private final com.eshop.app.repository.DeliveryAgentProfileRepository deliveryAgentProfileRepository;
@@ -43,15 +43,15 @@ public class AuthServiceImpl implements AuthService {
     private final java.util.concurrent.ConcurrentHashMap<String, EmailVerification> emailVerificationTokens = new java.util.concurrent.ConcurrentHashMap<>();
     // Temporary 2FA codes for login flow (in-memory store for demo purposes)
     private final java.util.concurrent.ConcurrentHashMap<Long, String> twoFactorLoginCodes = new java.util.concurrent.ConcurrentHashMap<>();
-    
+
     public AuthServiceImpl(UserRepository userRepository,
-                          CartRepository cartRepository,
-                          com.eshop.app.repository.DeliveryAgentProfileRepository deliveryAgentProfileRepository,
-                          com.eshop.app.repository.SellerProfileRepository sellerProfileRepository,
-                          PasswordEncoder passwordEncoder,
-                          AuthenticationManager authenticationManager,
-                          JwtTokenProvider tokenProvider,
-                          UserMapper userMapper) {
+            CartRepository cartRepository,
+            com.eshop.app.repository.DeliveryAgentProfileRepository deliveryAgentProfileRepository,
+            com.eshop.app.repository.SellerProfileRepository sellerProfileRepository,
+            PasswordEncoder passwordEncoder,
+            AuthenticationManager authenticationManager,
+            JwtTokenProvider tokenProvider,
+            UserMapper userMapper) {
         this.userRepository = userRepository;
         this.cartRepository = cartRepository;
         this.deliveryAgentProfileRepository = deliveryAgentProfileRepository;
@@ -61,21 +61,22 @@ public class AuthServiceImpl implements AuthService {
         this.tokenProvider = tokenProvider;
         this.userMapper = userMapper;
     }
-    
+
     @Override
     public AuthResponse register(RegisterRequest request) {
         log.info("🔥 === AUTH SERVICE REGISTER METHOD CALLED ===");
         log.info("📋 Validating request data...");
         log.info("Username: {}, Email: {}, Role: {}", request.getUsername(), request.getEmail(), request.getRole());
-        log.info("FirstName: {}, LastName: {}, Phone: {}", request.getFirstName(), request.getLastName(), request.getPhone());
-        
+        log.info("FirstName: {}, LastName: {}, Phone: {}", request.getFirstName(), request.getLastName(),
+                request.getPhone());
+
         log.info("🔍 Checking if username exists: {}", request.getUsername());
         if (userRepository.existsByUsername(request.getUsername())) {
             log.error("❌ Username already exists: {}", request.getUsername());
             throw new ResourceAlreadyExistsException("Username already exists");
         }
         log.info("✅ Username is available: {}", request.getUsername());
-        
+
         log.info("🔍 Checking if email exists: {}", request.getEmail());
         if (userRepository.existsByEmail(request.getEmail())) {
             log.error("❌ Email already exists: {}", request.getEmail());
@@ -87,7 +88,7 @@ public class AuthServiceImpl implements AuthService {
         String lastName;
         User.UserRole mappedRole;
         User.SellerType mappedSellerType;
-        
+
         try {
             log.info("👤 Processing user details...");
             // Prefer explicit first/last when provided; fallback to displayName
@@ -100,7 +101,8 @@ public class AuthServiceImpl implements AuthService {
             log.info("📝 Final names - First: {}, Last: {}", firstName, lastName);
 
             log.info("🎭 Mapping role from API to internal format...");
-            // Map incoming API Role (enum or string) to internal User.UserRole and SellerType
+            // Map incoming API Role (enum or string) to internal User.UserRole and
+            // SellerType
             mappedRole = User.UserRole.CUSTOMER;
             mappedSellerType = null;
             log.info("📥 Input role: {}, roleName: {}", request.getRole(), request.getRoleName());
@@ -132,35 +134,36 @@ public class AuthServiceImpl implements AuthService {
                 }
             } else if (request.getRoleName() != null && !request.getRoleName().isBlank()) {
                 log.info("🔤 Processing string roleName: {}", request.getRoleName());
-            // support legacy/alternate JSON that sends a string role name like "SELLER" or "RETAIL"
-            String rn = request.getRoleName().trim().toUpperCase();
-            switch (rn) {
-                case "ADMIN" -> mappedRole = User.UserRole.ADMIN;
-                case "CUSTOMER" -> mappedRole = User.UserRole.CUSTOMER;
-                case "DELIVERY_AGENT", "DELIVERY" -> mappedRole = User.UserRole.DELIVERY_AGENT;
-                case "FARMER" -> {
-                    mappedRole = User.UserRole.SELLER;
-                    mappedSellerType = User.SellerType.FARMER;
+                // support legacy/alternate JSON that sends a string role name like "SELLER" or
+                // "RETAIL"
+                String rn = request.getRoleName().trim().toUpperCase();
+                switch (rn) {
+                    case "ADMIN" -> mappedRole = User.UserRole.ADMIN;
+                    case "CUSTOMER" -> mappedRole = User.UserRole.CUSTOMER;
+                    case "DELIVERY_AGENT", "DELIVERY" -> mappedRole = User.UserRole.DELIVERY_AGENT;
+                    case "FARMER" -> {
+                        mappedRole = User.UserRole.SELLER;
+                        mappedSellerType = User.SellerType.FARMER;
+                    }
+                    case "RETAIL", "RETAIL_SELLER", "RETAILER" -> {
+                        mappedRole = User.UserRole.SELLER;
+                        mappedSellerType = User.SellerType.RETAILER;
+                    }
+                    case "WHOLESALER" -> {
+                        mappedRole = User.UserRole.SELLER;
+                        mappedSellerType = User.SellerType.WHOLESALER;
+                    }
+                    case "SHOP", "SHOP_SELLER", "BUSINESS" -> {
+                        mappedRole = User.UserRole.SELLER;
+                        mappedSellerType = User.SellerType.BUSINESS;
+                    }
+                    case "SELLER" -> mappedRole = User.UserRole.SELLER;
+                    default -> mappedRole = User.UserRole.CUSTOMER;
                 }
-                case "RETAIL", "RETAIL_SELLER", "RETAILER" -> {
-                    mappedRole = User.UserRole.SELLER;
-                    mappedSellerType = User.SellerType.RETAILER;
-                }
-                case "WHOLESALER" -> {
-                    mappedRole = User.UserRole.SELLER;
-                    mappedSellerType = User.SellerType.WHOLESALER;
-                }
-                case "SHOP", "SHOP_SELLER", "BUSINESS" -> {
-                    mappedRole = User.UserRole.SELLER;
-                    mappedSellerType = User.SellerType.BUSINESS;
-                }
-                case "SELLER" -> mappedRole = User.UserRole.SELLER;
-                default -> mappedRole = User.UserRole.CUSTOMER;
-            }
             } else {
                 log.info("⚠️ No role specified, defaulting to CUSTOMER");
             }
-            
+
             log.info("✅ Final role mapping - Role: {}, SellerType: {}", mappedRole, mappedSellerType);
         } catch (Exception e) {
             log.error("💥 Exception during role mapping: {}", e.getMessage(), e);
@@ -169,26 +172,27 @@ public class AuthServiceImpl implements AuthService {
 
         try {
             log.info("🏗️ Creating user entity...");
-            log.info("🔐 Encoding password (length: {})", request.getPassword() != null ? request.getPassword().length() : "null");
-            
+            log.info("🔐 Encoding password (length: {})",
+                    request.getPassword() != null ? request.getPassword().length() : "null");
+
             User user = User.builder()
-                .username(request.getUsername())
-                .email(request.getEmail())
-                .password(passwordEncoder.encode(request.getPassword()))
-                .firstName(firstName)
-                .lastName(lastName)
-                .phone(request.getPhone())
-                .address(request.getAddress())
-                .role(mappedRole)
-                .sellerType(mappedSellerType)
-                .active(true)
-                .emailVerified(false)
-                .build();
-            
+                    .username(request.getUsername())
+                    .email(request.getEmail())
+                    .password(passwordEncoder.encode(request.getPassword()))
+                    .firstName(firstName)
+                    .lastName(lastName)
+                    .phone(request.getPhone())
+                    .address(request.getAddress())
+                    .role(mappedRole)
+                    .sellerType(mappedSellerType)
+                    .active(true)
+                    .emailVerified(false)
+                    .build();
+
             log.info("💾 Saving user to database...");
             user = userRepository.save(user);
             log.info("✅ User saved successfully with ID: {}", user.getId());
-        
+
             // Create cart for customer
             if (user.getRole() == User.UserRole.CUSTOMER) {
                 log.info("🛒 Creating cart for customer: {}", user.getUsername());
@@ -198,55 +202,65 @@ public class AuthServiceImpl implements AuthService {
                 cartRepository.save(cart);
                 log.info("✅ Cart created successfully for user: {}", user.getUsername());
             }
-        
+
             // Create delivery agent profile when role is DELIVERY_AGENT
             if (user.getRole() == User.UserRole.DELIVERY_AGENT) {
                 log.info("🚚 Creating delivery agent profile for: {}", user.getUsername());
                 com.eshop.app.entity.DeliveryAgentProfile profile = com.eshop.app.entity.DeliveryAgentProfile.builder()
-                    .user(user)
-                .vehicleType(request.getVehicleType())
-                .build();
-            deliveryAgentProfileRepository.save(profile);
-        }
-
-        // Create seller profile when the mapped role is SELLER
-        if (user.getRole() == User.UserRole.SELLER) {
-            // If seller type wasn't determined from Role enum/roleName, try the incoming sellerType string
-            if (mappedSellerType == null && request.getSellerType() != null) {
-                String st = request.getSellerType().trim().toUpperCase();
-                if (st.equals("FARMER")) mappedSellerType = User.SellerType.FARMER;
-                else if (st.equals("RETAIL") || st.equals("RETAIL_SELLER") || st.equals("RETAILER")) mappedSellerType = User.SellerType.RETAILER;
-                else if (st.equals("WHOLESALER")) mappedSellerType = User.SellerType.WHOLESALER;
-                else if (st.equals("SHOP") || st.equals("SHOP_SELLER") || st.equals("BUSINESS")) mappedSellerType = User.SellerType.BUSINESS;
-                else if (st.equals("INDIVIDUAL")) mappedSellerType = User.SellerType.INDIVIDUAL;
+                        .user(user)
+                        .vehicleType(request.getVehicleType())
+                        .build();
+                deliveryAgentProfileRepository.save(profile);
             }
 
-            com.eshop.app.entity.SellerProfile sellerProfile = com.eshop.app.entity.SellerProfile.builder()
-                .user(user)
-                .aadhar(request.getAadhar() != null ? request.getAadhar() : request.getAadharNumber())
-                .pan(request.getPan() != null && !request.getPan().isBlank() ? request.getPan() : request.getPanNumber())
-                .gstin(request.getGstin() != null && !request.getGstin().isBlank() ? request.getGstin() : request.getGstinNumber())
-                .businessType(request.getBusinessType())
-                .shopName(request.getShopName())
-                .businessName(request.getBusinessName())
-                .farmLocationVillage(request.getFarmLocationVillage())
-                .landArea(request.getLandArea() != null ? request.getLandArea() : request.getFarmingLandArea())
-                .warehouseLocation(request.getWarehouseLocation())
-                .bulkPricingAgreement(request.getBulkPricingAgreement() != null ? request.getBulkPricingAgreement() : Boolean.FALSE)
-                .build();
+            // Create seller profile when the mapped role is SELLER
+            if (user.getRole() == User.UserRole.SELLER) {
+                // If seller type wasn't determined from Role enum/roleName, try the incoming
+                // sellerType string
+                if (mappedSellerType == null && request.getSellerType() != null) {
+                    String st = request.getSellerType().trim().toUpperCase();
+                    if (st.equals("FARMER"))
+                        mappedSellerType = User.SellerType.FARMER;
+                    else if (st.equals("RETAIL") || st.equals("RETAIL_SELLER") || st.equals("RETAILER"))
+                        mappedSellerType = User.SellerType.RETAILER;
+                    else if (st.equals("WHOLESALER"))
+                        mappedSellerType = User.SellerType.WHOLESALER;
+                    else if (st.equals("SHOP") || st.equals("SHOP_SELLER") || st.equals("BUSINESS"))
+                        mappedSellerType = User.SellerType.BUSINESS;
+                    else if (st.equals("INDIVIDUAL"))
+                        mappedSellerType = User.SellerType.INDIVIDUAL;
+                }
 
-            // persist and, if seller type was resolved, set it on user and save
-            sellerProfileRepository.save(sellerProfile);
-            if (mappedSellerType != null) {
-                user.setSellerType(mappedSellerType);
-                userRepository.save(user);
+                com.eshop.app.entity.SellerProfile sellerProfile = com.eshop.app.entity.SellerProfile.builder()
+                        .user(user)
+                        .aadhar(request.getAadhar() != null ? request.getAadhar() : request.getAadharNumber())
+                        .pan(request.getPan() != null && !request.getPan().isBlank() ? request.getPan()
+                                : request.getPanNumber())
+                        .gstin(request.getGstin() != null && !request.getGstin().isBlank() ? request.getGstin()
+                                : request.getGstinNumber())
+                        .businessType(request.getBusinessType())
+                        .shopName(request.getShopName())
+                        .businessName(request.getBusinessName())
+                        .farmLocationVillage(request.getFarmLocationVillage())
+                        .landArea(request.getLandArea() != null ? request.getLandArea() : request.getFarmingLandArea())
+                        .warehouseLocation(request.getWarehouseLocation())
+                        .bulkPricingAgreement(
+                                request.getBulkPricingAgreement() != null ? request.getBulkPricingAgreement()
+                                        : Boolean.FALSE)
+                        .build();
+
+                // persist and, if seller type was resolved, set it on user and save
+                sellerProfileRepository.save(sellerProfile);
+                if (mappedSellerType != null) {
+                    user.setSellerType(mappedSellerType);
+                    userRepository.save(user);
+                }
             }
-            }
-            
+
             log.info("🎫 Generating JWT token for user: {}", user.getUsername());
             String token = tokenProvider.generateTokenFromUser(user);
             log.info("✅ Token generated successfully (length: {})", token != null ? token.length() : "null");
-            
+
             log.info("🏗️ Building AuthResponse...");
             AuthResponse response = AuthResponse.builder()
                     .token(token)
@@ -257,33 +271,32 @@ public class AuthServiceImpl implements AuthService {
                     .role(user.getRole().name())
                     .expiresIn(tokenProvider.getJwtExpirationMs())
                     .build();
-                    
+
             log.info("🎉 Registration completed successfully for user: {}", user.getUsername());
             log.info("📋 Response details - UserID: {}, Role: {}", response.getUserId(), response.getRole());
             return response;
-            
+
         } catch (Exception e) {
             log.error("💥 Exception during user creation/saving phase: {}", e.getMessage(), e);
             throw e;
         }
     }
 
-    // resolveSellerType removed; mapping handled inline in register() to support new Role enum
-    
+    // resolveSellerType removed; mapping handled inline in register() to support
+    // new Role enum
+
     @Override
     public AuthResponse login(LoginRequest request) {
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
                         request.getUsernameOrEmail(),
-                        request.getPassword()
-                )
-        );
-        
+                        request.getPassword()));
+
         SecurityContextHolder.getContext().setAuthentication(authentication);
         String token = tokenProvider.generateToken(authentication);
-        
+
         UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
-        
+
         return AuthResponse.builder()
                 .token(token)
                 .type("Bearer")
@@ -294,15 +307,14 @@ public class AuthServiceImpl implements AuthService {
                 .expiresIn(tokenProvider.getJwtExpirationMs())
                 .build();
     }
-    
+
     @Override
     public UserResponse getCurrentUser() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
-        
-        User user = userRepository.findById(userDetails.getId())
+        Long userId = com.eshop.app.util.SecurityUtils.getAuthenticatedUserId();
+
+        User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
-        
+
         return userMapper.toUserResponse(user);
     }
 
@@ -319,11 +331,14 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public AuthResponse refreshToken(com.eshop.app.dto.request.RefreshTokenRequest request) {
         String token = request.getRefreshToken();
-        if (token == null || token.isBlank()) throw new IllegalArgumentException("refresh token required");
-        if (revokedRefreshTokens.contains(token)) throw new RuntimeException("Refresh token revoked");
+        if (token == null || token.isBlank())
+            throw new IllegalArgumentException("refresh token required");
+        if (revokedRefreshTokens.contains(token))
+            throw new RuntimeException("Refresh token revoked");
 
         // Validate token signature
-        if (!tokenProvider.validateToken(token)) throw new RuntimeException("Invalid refresh token");
+        if (!tokenProvider.validateToken(token))
+            throw new RuntimeException("Invalid refresh token");
 
         // Check logout-all timestamp
         Date issuedAt = tokenProvider.getIssuedAtFromToken(token);
@@ -378,9 +393,11 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public void resetPassword(com.eshop.app.dto.request.ResetPasswordRequest request) {
-        if (request.getToken() == null) throw new IllegalArgumentException("token required");
+        if (request.getToken() == null)
+            throw new IllegalArgumentException("token required");
         PasswordReset pr = passwordResetTokens.get(request.getToken());
-        if (pr == null || pr.expiresAt < System.currentTimeMillis()) throw new RuntimeException("Invalid or expired token");
+        if (pr == null || pr.expiresAt < System.currentTimeMillis())
+            throw new RuntimeException("Invalid or expired token");
         User user = userRepository.findById(pr.userId).orElseThrow(() -> new RuntimeException("User not found"));
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);
@@ -402,7 +419,8 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public void verifyEmail(String token) {
         EmailVerification ev = emailVerificationTokens.get(token);
-        if (ev == null || ev.expiresAt < System.currentTimeMillis()) throw new RuntimeException("Invalid or expired verification token");
+        if (ev == null || ev.expiresAt < System.currentTimeMillis())
+            throw new RuntimeException("Invalid or expired verification token");
         User user = userRepository.findById(ev.userId).orElseThrow(() -> new RuntimeException("User not found"));
         user.setEmailVerified(true);
         userRepository.save(user);
@@ -425,7 +443,8 @@ public class AuthServiceImpl implements AuthService {
         User user = userRepository.findById(userId).orElseThrow(() -> new RuntimeException("User not found"));
         String secret = java.util.UUID.randomUUID().toString().replaceAll("-", "");
 
-        // Save 2FA secret for the user (integrate with TOTP library like Google Authenticator in production)
+        // Save 2FA secret for the user (integrate with TOTP library like Google
+        // Authenticator in production)
         user.setTwoFactorSecret(secret);
         userRepository.save(user);
         return com.eshop.app.dto.response.TwoFactorSetupResponse.builder()
@@ -438,13 +457,15 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public void verifyTwoFactorSetup(Long userId, String code) {
         // Verify the TOTP code provided by the user
-        // In production, integrate with a TOTP library (e.g., GoogleAuth, jOTP) to verify the code
+        // In production, integrate with a TOTP library (e.g., GoogleAuth, jOTP) to
+        // verify the code
         // For now, simplified verification is performed
         User user = userRepository.findById(userId).orElseThrow(() -> new RuntimeException("User not found"));
-        
+
         // Validate code (integrate proper TOTP validation in production)
-        // Example: if (!totpService.verifyCode(user.getTwoFactorSecret(), code)) throw new RuntimeException("Invalid 2FA code");
-        
+        // Example: if (!totpService.verifyCode(user.getTwoFactorSecret(), code)) throw
+        // new RuntimeException("Invalid 2FA code");
+
         user.setTwoFactorEnabled(true);
         userRepository.save(user);
         log.info("2FA enabled for user {}", user.getEmail());
@@ -453,7 +474,8 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public void disableTwoFactor(Long userId, String password, String code) {
         User user = userRepository.findById(userId).orElseThrow(() -> new RuntimeException("User not found"));
-        if (!passwordEncoder.matches(password, user.getPassword())) throw new RuntimeException("Invalid password");
+        if (!passwordEncoder.matches(password, user.getPassword()))
+            throw new RuntimeException("Invalid password");
         user.setTwoFactorEnabled(false);
         user.setTwoFactorSecret(null);
         userRepository.save(user);
@@ -470,7 +492,8 @@ public class AuthServiceImpl implements AuthService {
             throw new RuntimeException("Invalid temp token");
         }
         String expected = twoFactorLoginCodes.get(userId);
-        if (expected == null || !expected.equals(request.getCode())) throw new RuntimeException("Invalid 2FA code");
+        if (expected == null || !expected.equals(request.getCode()))
+            throw new RuntimeException("Invalid 2FA code");
         User user = userRepository.findById(userId).orElseThrow(() -> new RuntimeException("User not found"));
         String token = tokenProvider.generateTokenFromUser(user);
         // One-time use
@@ -499,6 +522,23 @@ public class AuthServiceImpl implements AuthService {
     }
 
     // Helper classes for in-memory scaffolding
-    private static class PasswordReset { long userId; long expiresAt; PasswordReset(long u, long e){this.userId=u;this.expiresAt=e;} }
-    private static class EmailVerification { long userId; long expiresAt; EmailVerification(long u,long e){this.userId=u;this.expiresAt=e;} }
+    private static class PasswordReset {
+        long userId;
+        long expiresAt;
+
+        PasswordReset(long u, long e) {
+            this.userId = u;
+            this.expiresAt = e;
+        }
+    }
+
+    private static class EmailVerification {
+        long userId;
+        long expiresAt;
+
+        EmailVerification(long u, long e) {
+            this.userId = u;
+            this.expiresAt = e;
+        }
+    }
 }

@@ -64,7 +64,7 @@ public class CouponRequest {
     @NotNull(message = "Applies to is required")
     private Coupon.AppliesTo appliesTo;
     
-    private Long shopId; // For shop-specific coupons
+    private Long storeId; // For store-specific coupons
     private Long categoryId; // For category-specific coupons
     
     @Builder.Default

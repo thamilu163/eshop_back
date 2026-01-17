@@ -62,8 +62,8 @@ public interface ProductRepositoryEnhanced extends JpaRepository<Product, Long> 
         SELECT DISTINCT p FROM Product p
         LEFT JOIN FETCH p.category
         LEFT JOIN FETCH p.brand
-        LEFT JOIN FETCH p.shop
-        WHERE p.shop.seller.id = :sellerId
+            LEFT JOIN FETCH p.store
+            WHERE p.store.seller.id = :sellerId
             AND p.deleted = false
         ORDER BY p.createdAt DESC
         """)
@@ -86,7 +86,7 @@ public interface ProductRepositoryEnhanced extends JpaRepository<Product, Long> 
             AVG(p.averageRating) as averageRating
         )
         FROM Product p
-        WHERE p.shop.seller.id = :sellerId
+            WHERE p.store.seller.id = :sellerId
             AND p.deleted = false
         """)
     Map<String, Object> getProductStatisticsBySellerId(@Param("sellerId") Long sellerId);
@@ -126,7 +126,7 @@ public interface ProductRepositoryEnhanced extends JpaRepository<Product, Long> 
         FROM OrderItem oi
         JOIN oi.product p
         JOIN oi.order o
-        WHERE p.shop.seller.id = :sellerId
+            WHERE p.store.seller.id = :sellerId
             AND o.orderStatus = 'COMPLETED'
             AND p.deleted = false
         GROUP BY p.id, p.name, p.sku

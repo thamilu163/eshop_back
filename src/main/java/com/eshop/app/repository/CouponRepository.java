@@ -37,16 +37,16 @@ public interface CouponRepository extends JpaRepository<Coupon, Long> {
     Page<Coupon> findByIsActiveTrue(Pageable pageable);
     
     /**
-     * Find coupons by shop - O(log n) with index
+     * Find coupons by store - O(log n) with index
      */
-    Page<Coupon> findByShopId(Long shopId, Pageable pageable);
+    Page<Coupon> findByStoreId(Long storeId, Pageable pageable);
     
     /**
-     * Find active coupons by shop
+     * Find active coupons by store
      */
-    @Query("SELECT c FROM Coupon c WHERE c.shop.id = :shopId AND c.isActive = true " +
+    @Query("SELECT c FROM Coupon c WHERE c.store.id = :storeId AND c.isActive = true " +
            "AND c.validFrom <= :now AND c.validUntil >= :now")
-    List<Coupon> findActiveByShopId(@Param("shopId") Long shopId, @Param("now") LocalDateTime now);
+    List<Coupon> findActiveByStoreId(@Param("storeId") Long storeId, @Param("now") LocalDateTime now);
     
     /**
      * Find coupons by category
@@ -61,9 +61,9 @@ public interface CouponRepository extends JpaRepository<Coupon, Long> {
     List<Coupon> findActiveByCategoryId(@Param("categoryId") Long categoryId, @Param("now") LocalDateTime now);
     
     /**
-     * Find global coupons (not shop or category specific)
+     * Find global coupons (not store or category specific)
      */
-    @Query("SELECT c FROM Coupon c WHERE c.shop IS NULL AND c.category IS NULL AND c.isActive = true " +
+    @Query("SELECT c FROM Coupon c WHERE c.store IS NULL AND c.category IS NULL AND c.isActive = true " +
            "AND c.validFrom <= :now AND c.validUntil >= :now")
     List<Coupon> findGlobalActiveCoupons(@Param("now") LocalDateTime now);
     

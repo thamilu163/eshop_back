@@ -3,7 +3,7 @@ package com.eshop.app.service.analytics;
 import com.eshop.app.dto.response.AdminDashboardResponse;
 import com.eshop.app.service.OrderService;
 import com.eshop.app.service.ProductService;
-import com.eshop.app.service.ShopService;
+import com.eshop.app.service.StoreService;
 import com.eshop.app.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -20,7 +20,7 @@ public class AdminAggregationService {
 
     private final UserService userService;
     private final ProductService productService;
-    private final ShopService shopService;
+    private final StoreService storeService;
     private final OrderService orderService;
     private final Executor dashboardExecutor;
 
@@ -28,17 +28,17 @@ public class AdminAggregationService {
         try {
             CompletableFuture<Long> totalUsers = CompletableFuture.supplyAsync(userService::getTotalUserCount, dashboardExecutor);
             CompletableFuture<Long> totalProducts = CompletableFuture.supplyAsync(productService::getTotalProductCount, dashboardExecutor);
-            CompletableFuture<Long> totalShops = CompletableFuture.supplyAsync(shopService::getTotalShopCount, dashboardExecutor);
+            CompletableFuture<Long> totalStores = CompletableFuture.supplyAsync(storeService::getTotalStoreCount, dashboardExecutor);
             CompletableFuture<Long> totalOrders = CompletableFuture.supplyAsync(orderService::getTotalOrderCount, dashboardExecutor);
             CompletableFuture<Long> pendingOrders = CompletableFuture.supplyAsync(orderService::getPendingOrderCount, dashboardExecutor);
             CompletableFuture<Long> todayOrders = CompletableFuture.supplyAsync(orderService::getTodayOrderCount, dashboardExecutor);
 
-            CompletableFuture.allOf(totalUsers, totalProducts, totalShops, totalOrders, pendingOrders, todayOrders).join();
+            CompletableFuture.allOf(totalUsers, totalProducts, totalStores, totalOrders, pendingOrders, todayOrders).join();
 
             AdminDashboardResponse.OverviewStats overview = AdminDashboardResponse.OverviewStats.builder()
                     .totalUsers(safeGet(totalUsers, 0L))
                     .totalProducts(safeGet(totalProducts, 0L))
-                    .totalShops(safeGet(totalShops, 0L))
+                    .totalStores(safeGet(totalStores, 0L))
                     .totalOrders(safeGet(totalOrders, 0L))
                     .pendingOrders(safeGet(pendingOrders, 0L))
                     .todayOrders(safeGet(todayOrders, 0L))

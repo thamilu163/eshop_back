@@ -9,6 +9,7 @@ import com.eshop.app.exception.ValidationException;
 import com.eshop.app.exception.ResourceNotFoundException;
 import com.eshop.app.repository.SellerProfileRepository;
 import com.eshop.app.repository.UserRepository;
+import com.eshop.app.repository.StoreRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
@@ -19,28 +20,34 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 @Slf4j
 public class SellerService {
-    
+
     private final SellerProfileRepository sellerProfileRepository;
     private final UserRepository userRepository;
-    
+    private final StoreRepository storeRepository;
+
     @Transactional
     public SellerProfileResponse registerSeller(Long userId, SellerRegisterRequest request) {
         log.info("Registering seller profile for userId: {}", userId);
-        
+
         // Check if profile already exists
-        if (sellerProfileRepository.existsByUserId(userId)) {
+        if (sellerProfileRepository.existsByUser_Id(userId)) {
             throw new ValidationException("User already has a seller profile");
         }
-        
+
         // Validate terms acceptance
         if (!request.isAcceptedTerms()) {
             throw new ValidationException("Terms must be accepted");
         }
-        
+
         // Get user
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
-        
+
+        // CRITICAL: Update User entity's sellerType so store creation can read it
+        user.setSellerType(request.getSellerType());
+        userRepository.save(user);
+        log.info("Updated User entity sellerType to: {} for userId: {}", request.getSellerType(), userId);
+
         // Create profile
         SellerProfile profile = SellerProfile.builder()
                 .user(user)
@@ -57,41 +64,41 @@ public class SellerService {
                 .pan(request.getPan())
                 .gstin(request.getGstin())
                 .businessType(request.getBusinessType())
-                .shopName(request.getShopName())
+                .shopName(request.getStoreName() != null ? request.getStoreName() : request.getShopName())
                 .farmLocationVillage(request.getFarmLocationVillage())
                 .landArea(request.getLandArea())
                 .warehouseLocation(request.getWarehouseLocation())
                 .bulkPricingAgreement(request.getBulkPricingAgreement())
                 .build();
-        
+
         SellerProfile saved = sellerProfileRepository.save(profile);
         log.info("Seller profile created with id: {} for userId: {}", saved.getId(), userId);
-        
+
         return toResponse(saved);
     }
-    
+
     @Transactional(readOnly = true)
     public SellerProfileResponse getSellerProfile(Long userId) {
         log.debug("Fetching seller profile for userId: {}", userId);
-        
-        SellerProfile profile = sellerProfileRepository.findByUserId(userId)
+
+        SellerProfile profile = sellerProfileRepository.findByUser_Id(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Seller profile not found for userId: " + userId));
-        
+
         return toResponse(profile);
     }
-    
+
     @Transactional(readOnly = true)
     public boolean hasProfile(Long userId) {
-        return sellerProfileRepository.existsByUserId(userId);
+        return sellerProfileRepository.existsByUser_Id(userId);
     }
-    
+
     @Transactional
     public SellerProfileResponse updateSellerProfile(Long userId, SellerProfileUpdateRequest request) {
         log.info("Updating seller profile for userId: {}", userId);
-        
-        SellerProfile profile = sellerProfileRepository.findByUserId(userId)
+
+        SellerProfile profile = sellerProfileRepository.findByUser_Id(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Seller profile not found for userId: " + userId));
-        
+
         profile.setSellerType(request.getSellerType());
         profile.setDisplayName(request.getDisplayName());
         profile.setBusinessName(request.getBusinessName());
@@ -104,18 +111,32 @@ public class SellerService {
         profile.setPan(request.getPan());
         profile.setGstin(request.getGstin());
         profile.setBusinessType(request.getBusinessType());
-        profile.setShopName(request.getShopName());
+        profile.setShopName(request.getStoreName());
         profile.setFarmLocationVillage(request.getFarmLocationVillage());
         profile.setLandArea(request.getLandArea());
         profile.setWarehouseLocation(request.getWarehouseLocation());
         profile.setBulkPricingAgreement(request.getBulkPricingAgreement());
-        
+
+        profile.setUpdatedBy(userId.toString());
+
         SellerProfile updated = sellerProfileRepository.save(profile);
         log.info("Seller profile updated for userId: {}", userId);
-        
+
+        // Synchronize with Store entity if it exists
+        storeRepository.findBySellerId(userId).ifPresent(store -> {
+            log.info("Synchronizing store details for userId: {}", userId);
+            store.setStoreName(request.getStoreName() != null ? request.getStoreName() : request.getDisplayName());
+            store.setEmail(request.getEmail());
+            store.setPhone(request.getPhone());
+            store.setDescription(request.getDescription());
+            store.setSellerType(request.getSellerType());
+            store.setUpdatedBy(userId.toString());
+            storeRepository.save(store);
+        });
+
         return toResponse(updated);
     }
-    
+
     /**
      * Resolve user ID from authentication (supports both JWT and PrincipalDetails)
      */
@@ -123,14 +144,14 @@ public class SellerService {
         if (authentication == null) {
             throw new ValidationException("Authentication required");
         }
-        
+
         Object principal = authentication.getPrincipal();
-        
+
         // Try PrincipalDetails first
         if (principal instanceof com.eshop.app.config.EnhancedSecurityConfig.PrincipalDetails pd) {
             return pd.getId();
         }
-        
+
         // Try JWT
         if (authentication instanceof org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken jwtToken) {
             org.springframework.security.oauth2.jwt.Jwt jwt = jwtToken.getToken();
@@ -144,10 +165,10 @@ public class SellerService {
                 }
             }
         }
-        
+
         throw new ValidationException("Unable to resolve user ID from authentication");
     }
-    
+
     private SellerProfileResponse toResponse(SellerProfile profile) {
         return SellerProfileResponse.builder()
                 .id(profile.getId())

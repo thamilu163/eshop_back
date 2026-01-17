@@ -20,37 +20,37 @@ import java.util.stream.Collectors;
 /**
  * Product seeder - Order 6.
  * Creates products with all relationships.
- * Depends on Category, Brand, Shop, and Tag seeders.
+ * Depends on Category, Brand, Store, and Tag seeders.
  */
 @Slf4j
 @Component
 @Order(6)
 @RequiredArgsConstructor
 public class ProductSeeder implements Seeder<Product, SeederContext> {
-    
+
     private final ProductRepository productRepository;
     private final SeedProperties seedProperties;
-    
+
     @Override
     public List<Product> seed(SeederContext context) {
         try {
             List<Product> products = seedProperties.getProducts().stream()
-                .map(cfg -> buildProduct(cfg, context))
-                .filter(Optional::isPresent)
-                .map(Optional::get)
-                .toList();
-            
+                    .map(cfg -> buildProduct(cfg, context))
+                    .filter(Optional::isPresent)
+                    .map(Optional::get)
+                    .toList();
+
             List<Product> savedProducts = productRepository.saveAll(products);
-            
+
             log.info("Seeded {} products successfully", savedProducts.size());
             return savedProducts;
-            
+
         } catch (DataAccessException e) {
             throw new CatalogSeedingException(
-                "Failed to seed products: " + e.getMessage(), e);
+                    "Failed to seed products: " + e.getMessage(), e);
         }
     }
-    
+
     @Override
     public void cleanup() {
         try {
@@ -60,17 +60,17 @@ public class ProductSeeder implements Seeder<Product, SeederContext> {
             log.warn("Failed to cleanup products: {}", e.getMessage());
         }
     }
-    
+
     @Override
     public int order() {
         return 6;
     }
-    
+
     @Override
     public String name() {
         return "ProductSeeder";
     }
-    
+
     /**
      * Build product with null-safe relationship lookups.
      * Skips product if required relationships missing.
@@ -80,57 +80,57 @@ public class ProductSeeder implements Seeder<Product, SeederContext> {
         Category category = context.getCategories().get(cfg.getCategoryName());
         if (category == null) {
             log.warn("Skipping product '{}': category '{}' not found",
-                cfg.getName(), cfg.getCategoryName());
+                    cfg.getName(), cfg.getCategoryName());
             return Optional.empty();
         }
-        
-        Shop shop = context.getShops().get(cfg.getShopName());
-        if (shop == null) {
-            log.warn("Skipping product '{}': shop '{}' not found",
-                cfg.getName(), cfg.getShopName());
+
+        Store store = context.getStores().get(cfg.getShopName());
+        if (store == null) {
+            log.warn("Skipping product '{}': store '{}' not found",
+                    cfg.getName(), cfg.getShopName());
             return Optional.empty();
         }
-        
+
         // Optional references
         Brand brand = context.getBrands().get(cfg.getBrandName());
-        
+
         Set<Tag> tags = Optional.ofNullable(cfg.getTags())
-            .orElse(Collections.emptyList())
-            .stream()
-            .map(tagName -> context.getTags().get(tagName))
-            .filter(Objects::nonNull)
-            .collect(Collectors.toSet());
-        
+                .orElse(Collections.emptyList())
+                .stream()
+                .map(tagName -> context.getTags().get(tagName))
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
         return Optional.of(Product.builder()
-            .name(cfg.getName())
-            .description(cfg.getDescription())
-            .sku(cfg.getSku())
-            .price(parsePrice(cfg.getPrice()))
-            .discountPrice(parsePrice(cfg.getDiscountPrice()))
-            .stockQuantity(Objects.requireNonNullElse(cfg.getStockQuantity(), 0))
-            .category(category)
-            .brand(brand)
-            .shop(shop)
-            .tags(tags)
-            .featured(cfg.isFeatured())
-            .status(cfg.isActive() ? ProductStatus.ACTIVE : ProductStatus.INACTIVE)
-            .build());
+                .name(cfg.getName())
+                .description(cfg.getDescription())
+                .sku(cfg.getSku())
+                .price(parsePrice(cfg.getPrice()))
+                .discountPrice(parsePrice(cfg.getDiscountPrice()))
+                .stockQuantity(Objects.requireNonNullElse(cfg.getStockQuantity(), 0))
+                .category(category)
+                .brand(brand)
+                .store(store)
+                .tags(tags)
+                .featured(cfg.isFeatured())
+                .status(cfg.isActive() ? ProductStatus.ACTIVE : ProductStatus.INACTIVE)
+                .build());
     }
-    
+
     /**
      * Parse price with fallback to zero for invalid values.
      */
     private BigDecimal parsePrice(String price) {
         return Optional.ofNullable(price)
-            .filter(p -> !p.isBlank())
-            .map(p -> {
-                try {
-                    return new BigDecimal(p);
-                } catch (NumberFormatException e) {
-                    log.warn("Invalid price format: {}, using 0.00", p);
-                    return BigDecimal.ZERO;
-                }
-            })
-            .orElse(BigDecimal.ZERO);
+                .filter(p -> !p.isBlank())
+                .map(p -> {
+                    try {
+                        return new BigDecimal(p);
+                    } catch (NumberFormatException e) {
+                        log.warn("Invalid price format: {}, using 0.00", p);
+                        return BigDecimal.ZERO;
+                    }
+                })
+                .orElse(BigDecimal.ZERO);
     }
 }

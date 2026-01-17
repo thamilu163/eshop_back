@@ -8,7 +8,6 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
@@ -24,30 +23,26 @@ public interface StoreRepository extends JpaRepository<Store, Long> {
     List<Store> findByActiveTrue();
 
     boolean existsByDomain(String domain);
+    
+    boolean existsByStoreName(String storeName);
 
     Page<Store> findByActive(Boolean active, Pageable pageable);
 
     @Query("SELECT s FROM Store s WHERE LOWER(s.storeName) LIKE LOWER(CONCAT('%', :keyword, '%')) OR LOWER(s.description) LIKE LOWER(CONCAT('%', :keyword, '%'))")
     Page<Store> searchStores(@Param("keyword") String keyword, Pageable pageable);
 
-    @Query(value = """
-        SELECT s.*, 
-            (6371 * acos(
-                cos(radians(:latitude)) * cos(radians(sl.latitude)) *
-                cos(radians(sl.longitude) - radians(:longitude)) +
-                sin(radians(:latitude)) * sin(radians(sl.latitude))
-            )) AS distance_km
-        FROM stores s
-        INNER JOIN shop_locations sl ON s.location_id = sl.id
-        WHERE s.active = true
-        AND sl.latitude IS NOT NULL 
-        AND sl.longitude IS NOT NULL
-        HAVING distance_km <= :radiusKm
-        ORDER BY distance_km ASC
-        """, nativeQuery = true)
-    List<Object[]> findNearbyStores(
-            @Param("latitude") BigDecimal latitude,
-            @Param("longitude") BigDecimal longitude,
-            @Param("radiusKm") Integer radiusKm
-    );
+    /**
+     * Gets aggregated store statistics.
+     * 
+     * @return map containing store counts
+     */
+    @Query("""
+        SELECT new map(
+            COUNT(s.id) as totalShops,
+            COUNT(CASE WHEN s.active = true THEN 1 END) as activeShops
+        )
+        FROM Store s
+        WHERE s.deleted = false
+        """)
+    java.util.Map<String, Object> getStoreStatistics();
 }

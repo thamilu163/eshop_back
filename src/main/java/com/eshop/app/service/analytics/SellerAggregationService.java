@@ -3,7 +3,7 @@ package com.eshop.app.service.analytics;
 import com.eshop.app.dto.response.SellerDashboardResponse;
 import com.eshop.app.service.OrderService;
 import com.eshop.app.service.ProductService;
-import com.eshop.app.service.ShopService;
+import com.eshop.app.service.StoreService;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,22 +19,22 @@ public class SellerAggregationService {
 
     private final ProductService productService;
     private final OrderService orderService;
-    private final ShopService shopService;
+    private final StoreService storeService;
     private final Executor dashboardExecutor;
 
-    public SellerDashboardResponse.ShopOverview buildShopOverview(Long sellerId) {
+    public SellerDashboardResponse.StoreOverview buildStoreOverview(Long sellerId) {
         try {
-            return SellerDashboardResponse.ShopOverview.builder()
-                    .shopName(shopService.getShopNameBySellerId(sellerId))
-                    .shopStatus("Active")
+            return SellerDashboardResponse.StoreOverview.builder()
+                    .storeName(storeService.getStoreNameBySellerId(sellerId))
+                    .storeStatus("Active")
                     .totalProducts(productService.getProductCountBySellerId(sellerId))
                     .activeProducts(productService.getActiveProductCountBySellerId(sellerId))
                     .outOfStockProducts(productService.getOutOfStockCountBySellerId(sellerId))
-                    .shopRating(shopService.getShopRatingBySellerId(sellerId))
+                    .storeRating(storeService.getStoreRatingBySellerId(sellerId))
                     .build();
         } catch (Exception e) {
-            log.error("Failed to build shop overview for {}: {}", sellerId, e.getMessage(), e);
-            return SellerDashboardResponse.ShopOverview.builder().build();
+            log.error("Failed to build store overview for {}: {}", sellerId, e.getMessage(), e);
+            return SellerDashboardResponse.StoreOverview.builder().build();
         }
     }
 
@@ -66,8 +66,8 @@ public class SellerAggregationService {
         }
     }
 
-    public CompletableFuture<SellerDashboardResponse.ShopOverview> buildShopOverviewAsync(Long sellerId) {
-        return CompletableFuture.supplyAsync(() -> buildShopOverview(sellerId), dashboardExecutor);
+    public CompletableFuture<SellerDashboardResponse.StoreOverview> buildStoreOverviewAsync(Long sellerId) {
+        return CompletableFuture.supplyAsync(() -> buildStoreOverview(sellerId), dashboardExecutor);
     }
 
     public CompletableFuture<SellerDashboardResponse.SalesMetrics> buildSalesMetricsAsync(Long sellerId) {

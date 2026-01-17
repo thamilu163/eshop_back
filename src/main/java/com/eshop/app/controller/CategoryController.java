@@ -41,7 +41,7 @@ import java.util.concurrent.TimeUnit;
 public class CategoryController {
     
     private static final Set<String> ALLOWED_SORT_FIELDS = Set.of("name", "id", "createdAt", "updatedAt");
-    private static final int MAX_PAGE_SIZE = 100;
+    private static final int MAX_PAGE_SIZE = 1000;
     
     private final CategoryService categoryService;
     

@@ -17,21 +17,22 @@ import java.util.Date;
 
 @Component
 public class JwtTokenProvider {
-    
+
     private static final Logger logger = LoggerFactory.getLogger(JwtTokenProvider.class);
-    
+
     @Value("${jwt.secret}")
     private String jwtSecret;
-    
+
     @Value("${jwt.expiration}")
     private long jwtExpirationMs;
-    
+
     private SecretKey key;
     private MacAlgorithm macAlgorithm;
-    
+
     @PostConstruct
     public void init() {
-        // Use Base64 decoding if the secret is Base64-encoded; fallback to UTF-8 bytes when not
+        // Use Base64 decoding if the secret is Base64-encoded; fallback to UTF-8 bytes
+        // when not
         byte[] keyBytes;
         try {
             keyBytes = Decoders.BASE64.decode(jwtSecret);
@@ -52,28 +53,51 @@ public class JwtTokenProvider {
             this.macAlgorithm = Jwts.SIG.HS256;
         }
     }
-    
+
     public String generateToken(Authentication authentication) {
-        UserDetailsImpl userPrincipal = (UserDetailsImpl) authentication.getPrincipal();
-        
+        Long id;
+        String username;
+        String email;
+        String role;
+
+        Object principal = authentication.getPrincipal();
+
+        if (principal instanceof UserDetailsImpl ud) {
+            id = ud.getId();
+            username = ud.getUsername();
+            email = ud.getEmail();
+            role = ud.getRole();
+        } else if (principal instanceof com.eshop.app.config.EnhancedSecurityConfig.PrincipalDetails pd) {
+            id = pd.getId();
+            username = pd.getUsername();
+            email = pd.getEmail();
+            // Extract role from authorities (remove ROLE_ prefix)
+            role = authentication.getAuthorities().stream()
+                    .findFirst()
+                    .map(a -> a.getAuthority().replace("ROLE_", ""))
+                    .orElse("CUSTOMER");
+        } else {
+            throw new IllegalArgumentException("Unsupported principal type: " + principal.getClass().getName());
+        }
+
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + jwtExpirationMs);
-        
+
         return Jwts.builder()
-                .subject(Long.toString(userPrincipal.getId()))
-                .claim("username", userPrincipal.getUsername())
-                .claim("email", userPrincipal.getEmail())
-                .claim("role", userPrincipal.getRole())
+                .subject(Long.toString(id))
+                .claim("username", username)
+                .claim("email", email)
+                .claim("role", role)
                 .issuedAt(now)
                 .expiration(expiryDate)
                 .signWith(key, macAlgorithm)
                 .compact();
     }
-    
+
     public String generateTokenFromUser(User user) {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + jwtExpirationMs);
-        
+
         return Jwts.builder()
                 .subject(Long.toString(user.getId()))
                 .claim("username", user.getUsername())
@@ -84,33 +108,33 @@ public class JwtTokenProvider {
                 .signWith(key, macAlgorithm)
                 .compact();
     }
-    
+
     public Long getUserIdFromToken(String token) {
         Claims claims = Jwts.parser()
                 .verifyWith(key)
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
-        
+
         return Long.parseLong(claims.getSubject());
     }
-    
+
     public String getUsernameFromToken(String token) {
         Claims claims = Jwts.parser()
                 .verifyWith(key)
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
-        
+
         return claims.get("username", String.class);
     }
-    
+
     public boolean validateToken(String authToken) {
         try {
             Jwts.parser()
-                .verifyWith(key)
-                .build()
-                .parseSignedClaims(authToken);
+                    .verifyWith(key)
+                    .build()
+                    .parseSignedClaims(authToken);
             return true;
         } catch (SecurityException ex) {
             logger.error("Invalid JWT signature");
@@ -125,7 +149,7 @@ public class JwtTokenProvider {
         }
         return false;
     }
-    
+
     public long getJwtExpirationMs() {
         return jwtExpirationMs;
     }

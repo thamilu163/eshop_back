@@ -97,6 +97,26 @@ public class ProblemDetailExceptionHandler {
     }
 
     /**
+     * 400 BAD REQUEST - Validation exception
+     */
+    @ExceptionHandler(com.eshop.app.exception.ValidationException.class)
+    public ResponseEntity<ProblemDetail> handleValidationException(
+            com.eshop.app.exception.ValidationException ex,
+            HttpServletRequest request) {
+
+        log.warn("Validation error: {}", ex.getMessage());
+
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+                HttpStatus.BAD_REQUEST,
+                ex.getMessage());
+        problem.setTitle("Validation Error");
+        problem.setInstance(URI.create(request.getRequestURI()));
+        problem.setProperty("timestamp", Instant.now().toString());
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problem);
+    }
+
+    /**
      * 400 BAD REQUEST - Illegal argument
      */
     @ExceptionHandler(IllegalArgumentException.class)

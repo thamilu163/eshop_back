@@ -14,18 +14,18 @@ import com.eshop.app.repository.CartItemRepository;
 import com.eshop.app.repository.CartRepository;
 import com.eshop.app.repository.ProductRepository;
 import com.eshop.app.repository.UserRepository;
-import com.eshop.app.security.UserDetailsImpl;
 import com.eshop.app.service.CartService;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Cart Service Implementation providing comprehensive shopping cart functionality.
+ * Cart Service Implementation providing comprehensive shopping cart
+ * functionality.
  * 
- * This service handles both anonymous and authenticated user carts with the following features:
+ * This service handles both anonymous and authenticated user carts with the
+ * following features:
  * 
  * Anonymous Cart Management:
  * - UUID-based cart identification for guest users
@@ -68,31 +68,29 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Transactional
 public class CartServiceImpl implements CartService {
-    
+
     private final CartRepository cartRepository;
     private final CartItemRepository cartItemRepository;
     private final ProductRepository productRepository;
     private final UserRepository userRepository;
     private final EntityMapper entityMapper;
-    
+
     public CartServiceImpl(CartRepository cartRepository,
-                          CartItemRepository cartItemRepository,
-                          ProductRepository productRepository,
-                          UserRepository userRepository,
-                          EntityMapper entityMapper) {
+            CartItemRepository cartItemRepository,
+            ProductRepository productRepository,
+            UserRepository userRepository,
+            EntityMapper entityMapper) {
         this.cartRepository = cartRepository;
         this.cartItemRepository = cartItemRepository;
         this.productRepository = productRepository;
         this.userRepository = userRepository;
         this.entityMapper = entityMapper;
     }
-    
+
     private Long getCurrentUserId() {
-        UserDetailsImpl userDetails = (UserDetailsImpl) SecurityContextHolder.getContext()
-                .getAuthentication().getPrincipal();
-        return userDetails.getId();
+        return com.eshop.app.util.SecurityUtils.getAuthenticatedUserId();
     }
-    
+
     private Cart getOrCreateCart() {
         Long userId = getCurrentUserId();
         return cartRepository.findByUserId(userId)
@@ -103,7 +101,7 @@ public class CartServiceImpl implements CartService {
                     return cartRepository.save(cart);
                 });
     }
-    
+
     @Override
     @Transactional(readOnly = true)
     public CartResponse getCart() {
@@ -111,22 +109,22 @@ public class CartServiceImpl implements CartService {
         cart.calculateTotalAmount();
         return entityMapper.toCartResponse(cart);
     }
-    
+
     @Override
     public CartResponse addItemToCart(CartItemRequest request) {
         Cart cart = getOrCreateCart();
-        
+
         Product product = productRepository.findById(request.getProductId())
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found"));
-        
+
         if (product.getStockQuantity() < request.getQuantity()) {
             throw new InsufficientStockException("Insufficient stock for product: " + product.getName());
         }
-        
+
         CartItem existingItem = cartItemRepository
                 .findByCartIdAndProductId(cart.getId(), product.getId())
                 .orElse(null);
-        
+
         if (existingItem != null) {
             int newQuantity = existingItem.getQuantity() + request.getQuantity();
             if (product.getStockQuantity() < newQuantity) {
@@ -144,55 +142,55 @@ public class CartServiceImpl implements CartService {
             cart.getItems().add(cartItem);
             cartItemRepository.save(cartItem);
         }
-        
+
         cart.calculateTotalAmount();
         cart = cartRepository.save(cart);
         return entityMapper.toCartResponse(cart);
     }
-    
+
     @Override
     public CartResponse updateCartItem(Long itemId, Integer quantity) {
         CartItem cartItem = cartItemRepository.findById(itemId)
                 .orElseThrow(() -> new ResourceNotFoundException("Cart item not found"));
-        
+
         Cart cart = getOrCreateCart();
-        
+
         if (!cartItem.getCart().getId().equals(cart.getId())) {
             throw new IllegalArgumentException("Cart item does not belong to current user");
         }
-        
+
         Product product = cartItem.getProduct();
         if (product.getStockQuantity() < quantity) {
             throw new InsufficientStockException("Insufficient stock for product: " + product.getName());
         }
-        
+
         cartItem.setQuantity(quantity);
         cartItemRepository.save(cartItem);
-        
+
         cart.calculateTotalAmount();
         cart = cartRepository.save(cart);
         return entityMapper.toCartResponse(cart);
     }
-    
+
     @Override
     public CartResponse removeItemFromCart(Long itemId) {
         CartItem cartItem = cartItemRepository.findById(itemId)
                 .orElseThrow(() -> new ResourceNotFoundException("Cart item not found"));
-        
+
         Cart cart = getOrCreateCart();
-        
+
         if (!cartItem.getCart().getId().equals(cart.getId())) {
             throw new IllegalArgumentException("Cart item does not belong to current user");
         }
-        
+
         cart.getItems().remove(cartItem);
         cartItemRepository.delete(cartItem);
-        
+
         cart.calculateTotalAmount();
         cart = cartRepository.save(cart);
         return entityMapper.toCartResponse(cart);
     }
-    
+
     @Override
     public void clearCart() {
         Cart cart = getOrCreateCart();
@@ -201,9 +199,9 @@ public class CartServiceImpl implements CartService {
         cart.calculateTotalAmount();
         cartRepository.save(cart);
     }
-    
+
     // Anonymous Cart Methods
-    
+
     /**
      * Create anonymous cart with unique code
      * Time Complexity: O(1)
@@ -212,16 +210,16 @@ public class CartServiceImpl implements CartService {
     @Override
     public CartResponse createAnonymousCart() {
         String cartCode = generateUniqueCartCode();
-        
+
         Cart cart = Cart.builder()
                 .cartCode(cartCode)
                 .user(null) // Anonymous cart
                 .build();
-        
+
         cart = cartRepository.save(cart);
         return entityMapper.toCartResponse(cart);
     }
-    
+
     /**
      * Get cart by code (anonymous or authenticated)
      * Time Complexity: O(1) with proper indexing
@@ -232,7 +230,7 @@ public class CartServiceImpl implements CartService {
         // Mock implementation
         return new CartResponse();
     }
-    
+
     /**
      * Update entire cart with new items
      * Time Complexity: O(n) where n is number of items
@@ -242,52 +240,52 @@ public class CartServiceImpl implements CartService {
         // Mock implementation
         return new CartResponse();
     }
-    
+
     @Override
     public CartResponse addProductToCart(String cartCode, CartItemRequest request) {
         // Mock implementation
         return new CartResponse();
     }
-    
+
     @Override
     public CartResponse addMultipleProductsToCart(String cartCode, MultipleCartItemsRequest request) {
         // Mock implementation
         return new CartResponse();
     }
-    
+
     @Override
     public CartResponse removeProductFromCart(String cartCode, String sku) {
         // Mock implementation
         return new CartResponse();
     }
-    
+
     // Customer Cart Methods
-    
+
     @Override
     public CartResponse createCustomerCart(Long customerId) {
         // Mock implementation
         return new CartResponse();
     }
-    
+
     @Override
     @Transactional(readOnly = true)
     public CartResponse getCustomerCart(Long customerId) {
         // Mock implementation
         return new CartResponse();
     }
-    
+
     // Helper Methods
-    
+
     @SuppressWarnings("unused")
     private CartResponse addProductToCartInternal(Cart cart, Product product, Integer quantity) {
         if (product.getStockQuantity() < quantity) {
             throw new InsufficientStockException("Insufficient stock for product: " + product.getName());
         }
-        
+
         Optional<CartItem> existingItem = cart.getItems().stream()
                 .filter(item -> item.getProduct().getId().equals(product.getId()))
                 .findFirst();
-        
+
         if (existingItem.isPresent()) {
             CartItem cartItem = existingItem.get();
             cartItem.setQuantity(cartItem.getQuantity() + quantity);
@@ -299,26 +297,27 @@ public class CartServiceImpl implements CartService {
                     .quantity(quantity)
                     .price(product.getDiscountPrice() != null ? product.getDiscountPrice() : product.getPrice())
                     .build();
-            
+
             cartItemRepository.save(cartItem);
             cart.getItems().add(cartItem);
         }
-        
+
         cart.calculateTotalAmount();
         cart = cartRepository.save(cart);
         return entityMapper.toCartResponse(cart);
     }
-    
+
     /**
      * Generate unique cart code
-     * Time Complexity: O(1) average case, O(k) worst case where k is collision count
+     * Time Complexity: O(1) average case, O(k) worst case where k is collision
+     * count
      */
     private String generateUniqueCartCode() {
         String code;
         do {
             code = "CART_" + java.util.UUID.randomUUID().toString().substring(0, 8).toUpperCase();
         } while (cartRepository.existsByCartCode(code));
-        
+
         return code;
     }
 }

@@ -36,10 +36,13 @@ public class SellerProfileUpdateRequest {
     
     // Legacy fields
     private String aadhar;
+    @Pattern(regexp = "^[A-Z]{5}[0-9]{4}[A-Z]{1}$", message = "Invalid PAN format")
     private String pan;
+    
+    @Pattern(regexp = "^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$", message = "Invalid GSTIN format")
     private String gstin;
     private String businessType;
-    private String shopName;
+    private String storeName;
     private String farmLocationVillage;
     private String landArea;
     private String warehouseLocation;

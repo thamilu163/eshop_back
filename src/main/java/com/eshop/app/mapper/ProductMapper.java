@@ -39,7 +39,7 @@ public interface ProductMapper {
      */
     @Mapping(target = "categoryName", source = "category.name")
     @Mapping(target = "brandName", source = "brand.name")
-    @Mapping(target = "shopName", ignore = true)
+    @Mapping(target = "storeName", ignore = true)
     ProductListResponse toProductListResponse(ProductSummaryProjection summary);
 
     /**
@@ -48,7 +48,7 @@ public interface ProductMapper {
      */
     @Mapping(target = "categoryName", source = "category.name")
     @Mapping(target = "brandName", source = "brand.name")
-    @Mapping(target = "shopName", source = "shop.shopName")
+    @Mapping(target = "storeName", source = "store.storeName")
     @Mapping(target = "imageUrl", expression = "java(getPrimaryImageUrl(product))")
     @Mapping(target = "active", expression = "java(isProductActive(product))")
     ProductListResponse toProductListResponseFromEntity(Product product);

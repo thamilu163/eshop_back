@@ -5,7 +5,7 @@ import com.eshop.app.service.ProductService;
 import com.eshop.app.repository.ProductRepository;
 import com.eshop.app.repository.CategoryRepository;
 import com.eshop.app.repository.BrandRepository;
-import com.eshop.app.repository.ShopRepository;
+import com.eshop.app.repository.StoreRepository;
 import com.eshop.app.repository.TagRepository;
 import com.eshop.app.repository.OrderItemRepository;
 import com.eshop.app.mapper.ProductMapper;
@@ -25,7 +25,7 @@ import com.eshop.app.dto.response.SellerProductDashboard;
 import com.eshop.app.entity.Product;
 import com.eshop.app.entity.Category;
 import com.eshop.app.entity.Brand;
-import com.eshop.app.entity.Shop;
+import com.eshop.app.entity.Store;
 import com.eshop.app.entity.Tag;
 import com.eshop.app.entity.OrderItem;
 import com.eshop.app.entity.enums.ProductStatus;
@@ -64,31 +64,33 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
+
 // ...existing code...
 @Slf4j
 @Service
-// Removed class-level @Transactional - each method explicitly defines its transaction boundary
+// Removed class-level @Transactional - each method explicitly defines its
+// transaction boundary
 @RequiredArgsConstructor
 @CacheConfig(cacheNames = ApiConstants.Cache.PRODUCTS_CACHE)
 public class ProductServiceImpl implements ProductService {
-    
+
     // ═══════════════════════════════════════════════════════════════
     // CONSTANTS (CRITICAL-001 FIX)
     // ═══════════════════════════════════════════════════════════════
-    
+
     /** Maximum batch size for bulk operations (CRITICAL-001) */
     private static final int MAX_BATCH_SIZE = 100;
-    
+
     // Adding a constant for LOW_STOCK_THRESHOLD
     private static final int LOW_STOCK_THRESHOLD = 10;
-    
+
     // ═══════════════════════════════════════════════════════════════
     // DEPENDENCIES
     // ═══════════════════════════════════════════════════════════════
     private final ProductRepository productRepository;
     private final CategoryRepository categoryRepository;
     private final BrandRepository brandRepository;
-    private final ShopRepository shopRepository;
+    private final StoreRepository storeRepository;
     private final TagRepository tagRepository;
     private final OrderItemRepository orderItemRepository;
     private final ProductMapper productMapper;
@@ -96,144 +98,144 @@ public class ProductServiceImpl implements ProductService {
     private final ProductProperties productProperties;
     private final ApplicationEventPublisher eventPublisher;
     private final ProductServiceHelper helper;
-    
+
     // ═══════════════════════════════════════════════════════════════
     // LIFECYCLE
     // ═══════════════════════════════════════════════════════════════
-    
+
     @PostConstruct
     public void logConfiguration() {
-        log.info("ProductService initialized with configuration: lowStockThreshold={}, maxBatchSize={}, maxFriendlyUrlAttempts={}",
-            productProperties.getLowStockThreshold(),
-            productProperties.getMaxBatchSize(),
-            productProperties.getMaxFriendlyUrlAttempts());
+        log.info(
+                "ProductService initialized with configuration: lowStockThreshold={}, maxBatchSize={}, maxFriendlyUrlAttempts={}",
+                productProperties.getLowStockThreshold(),
+                productProperties.getMaxBatchSize(),
+                productProperties.getMaxFriendlyUrlAttempts());
     }
-    
+
     // ═══════════════════════════════════════════════════════════════
     // CRUD OPERATIONS
     // ═══════════════════════════════════════════════════════════════
-    
+
     /**
      * Create a new product with comprehensive validation (CRITICAL-003 FIX).
      * 
-     * <p><b>Fixes Applied:</b>
+     * <p>
+     * <b>Fixes Applied:</b>
      * <ul>
-     *   <li>CRITICAL-003: Validate-first pattern (no manual cleanup)</li>
-     *   <li>HIGH-001: Comprehensive logging with MDC</li>
-     *   <li>HIGH-005: Method-level validation with @Valid</li>
-     *   <li>MEDIUM-005: Batch tag processing</li>
+     * <li>CRITICAL-003: Validate-first pattern (no manual cleanup)</li>
+     * <li>HIGH-001: Comprehensive logging with MDC</li>
+     * <li>HIGH-005: Method-level validation with @Valid</li>
+     * <li>MEDIUM-005: Batch tag processing</li>
      * </ul>
      * 
-     * <p><b>Validations:</b>
+     * <p>
+     * <b>Validations:</b>
      * <ul>
-     *   <li>Unique SKU enforcement</li>
-     *   <li>Friendly URL generation and uniqueness (CRITICAL-002 fix)</li>
-     *   <li>Dynamic category attributes validation (before persistence)</li>
-     *   <li>Tag batch resolution (N+1 fix)</li>
+     * <li>Unique SKU enforcement</li>
+     * <li>Friendly URL generation and uniqueness (CRITICAL-002 fix)</li>
+     * <li>Dynamic category attributes validation (before persistence)</li>
+     * <li>Tag batch resolution (N+1 fix)</li>
      * </ul>
      * 
      * @param request validated product creation request
      * @return created product response with all relations populated
-     * @throws DuplicateSkuException if SKU already exists
+     * @throws DuplicateSkuException     if SKU already exists
      * @throws ResourceNotFoundException if related entities not found
-     * @throws IllegalArgumentException if category attributes validation fails
+     * @throws IllegalArgumentException  if category attributes validation fails
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
     @PreAuthorize("hasRole('ADMIN') or hasRole('SELLER')")
-    @Retryable(
-        retryFor = { org.springframework.dao.OptimisticLockingFailureException.class, org.springframework.dao.ConcurrencyFailureException.class },
-        maxAttempts = 3,
-        backoff = @Backoff(delay = 500, multiplier = 2)
-    )
+    @Retryable(retryFor = { org.springframework.dao.OptimisticLockingFailureException.class,
+            org.springframework.dao.ConcurrencyFailureException.class }, maxAttempts = 3, backoff = @Backoff(delay = 500, multiplier = 2))
     public ProductResponse createProduct(@Valid @NotNull ProductCreateRequest request, String userId) {
         MDC.put("operation", "createProduct");
         MDC.put("sku", request.getSku());
         MDC.put("userId", userId);
-        
+
         log.info("Creating product: SKU={}, name={}, userId={}", request.getSku(), request.getName(), userId);
-        
+
         try {
             // ────────────────────────────────────────────────────────
             // CRITICAL-003 FIX: Validate FIRST, before any persistence
             // ────────────────────────────────────────────────────────
-            
+
             // Pre-validation assertions
             Assert.notNull(request.getName(), "Product name is required");
             Assert.notNull(request.getSku(), "Product SKU is required");
             Assert.notNull(request.getPrice(), "Product price is required");
             Assert.isTrue(request.getPrice().compareTo(BigDecimal.ZERO) > 0, "Price must be positive");
-            
+
             // Validate category attributes BEFORE creating product
             if (request.getCategoryType() != null && request.getAttributes() != null) {
                 attributeValidatorService.validateAttributes(
-                    request.getCategoryType(), 
-                    request.getAttributes()
-                );
+                        request.getCategoryType(),
+                        request.getAttributes());
             }
-            
+
             // Check for duplicate SKU
             if (productRepository.existsBySku(request.getSku())) {
                 throw new com.eshop.app.exception.DuplicateSkuException(request.getSku());
             }
-            
+
             // ────────────────────────────────────────────────────────
             // Load and validate related entities
             // ────────────────────────────────────────────────────────
-            
+
             Category category = categoryRepository.findById(request.getCategoryId())
-                .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + request.getCategoryId()));
-            
-            // ✅ AUTO-RESOLVE SHOP/STORE: If shopId not provided, get seller's shop
-            final Long resolvedShopId;
-            if (request.getShopId() != null) {
-                resolvedShopId = request.getShopId();
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Category not found with id: " + request.getCategoryId()));
+
+            // ✅ AUTO-RESOLVE STORE: If storeId not provided, get seller's store
+            final Long resolvedStoreId;
+            if (request.getStoreId() != null) {
+                resolvedStoreId = request.getStoreId();
             } else {
-                log.info("ShopId not provided, auto-resolving from userId: {}", userId);
+                log.info("StoreId not provided, auto-resolving from userId: {}", userId);
                 try {
                     Long sellerIdLong = Long.parseLong(userId);
-                    Shop sellerShop = shopRepository.findBySellerId(sellerIdLong)
-                        .orElseThrow(() -> new ResourceNotFoundException(
-                            "Seller must create a store before adding products. Please create your store first."
-                        ));
-                    resolvedShopId = sellerShop.getId();
-                    log.info("Auto-resolved shopId={} for seller userId={}", resolvedShopId, userId);
+                    Store sellerStore = storeRepository.findBySellerId(sellerIdLong)
+                            .orElseThrow(() -> new ResourceNotFoundException(
+                                    "Seller must create a store before adding products. Please create your store first."));
+                    resolvedStoreId = sellerStore.getId();
+                    log.info("Auto-resolved storeId={} for seller userId={}", resolvedStoreId, userId);
                 } catch (NumberFormatException e) {
                     throw new ResourceNotFoundException("Invalid user ID format: " + userId);
                 }
             }
-            
-            Shop shop = shopRepository.findById(resolvedShopId)
-                .orElseThrow(() -> new ResourceNotFoundException("Shop not found with id: " + resolvedShopId));
-            
+
+            Store store = storeRepository.findById(resolvedStoreId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Store not found with id: " + resolvedStoreId));
+
             Brand brand = null;
             if (request.getBrandId() != null) {
                 brand = brandRepository.findById(request.getBrandId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Brand not found with id: " + request.getBrandId()));
+                        .orElseThrow(() -> new ResourceNotFoundException(
+                                "Brand not found with id: " + request.getBrandId()));
             }
-            
+
             // MEDIUM-005 FIX: Batch tag resolution (N+1 → 2 queries)
             Set<Tag> tags = helper.resolveOrCreateTags(request.getTags());
-            
+
             // ────────────────────────────────────────────────────────
             // Build product entity (single save operation)
             // ────────────────────────────────────────────────────────
-            
-            Product product = helper.buildProductFromRequest(request, category, shop, brand, tags);
-            
+
+            Product product = helper.buildProductFromRequest(request, category, store, brand, tags);
+
             // Single save operation (no manual cleanup needed)
             product = productRepository.save(product);
-            
+
             // ────────────────────────────────────────────────────────
             // Publish domain event (async processing)
             // ────────────────────────────────────────────────────────
-            
+
             eventPublisher.publishEvent(new ProductCreatedEvent(this, product));
-            
+
             log.info("Successfully created product: ID={}, SKU={}", product.getId(), product.getSku());
-            
+
             return productMapper.toProductResponse(product);
-            
+
         } catch (DuplicateResourceException | ResourceNotFoundException | IllegalArgumentException e) {
             log.warn("Product creation failed: {}", e.getMessage());
             throw e;
@@ -244,33 +246,31 @@ public class ProductServiceImpl implements ProductService {
             MDC.clear();
         }
     }
-    
+
     /**
      * Update product with cache update
      * Time Complexity: O(1) - database update with index
      * Space Complexity: O(1)
      */
     @Override
-    @Transactional  // Explicit write transaction
+    @Transactional // Explicit write transaction
     @CachePut(value = "products", key = "#id")
     @PreAuthorize("hasRole('ADMIN') or hasRole('SELLER')")
-    @Retryable(
-        retryFor = { org.springframework.dao.OptimisticLockingFailureException.class, org.springframework.dao.ConcurrencyFailureException.class },
-        maxAttempts = 3,
-        backoff = @Backoff(delay = 500, multiplier = 2)
-    )
+    @Retryable(retryFor = { org.springframework.dao.OptimisticLockingFailureException.class,
+            org.springframework.dao.ConcurrencyFailureException.class }, maxAttempts = 3, backoff = @Backoff(delay = 500, multiplier = 2))
     public ProductResponse updateProduct(Long id, ProductUpdateRequest request) {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + id));
-        
+
         Category category = categoryRepository.findById(request.getCategoryId())
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
-        
+
         product.setName(request.getName());
         // Sanitize description before saving
-        String sanitizedDescription = request.getDescription() == null ? null : org.springframework.web.util.HtmlUtils.htmlEscape(request.getDescription());
+        String sanitizedDescription = request.getDescription() == null ? null
+                : org.springframework.web.util.HtmlUtils.htmlEscape(request.getDescription());
         product.setDescription(sanitizedDescription);
-        
+
         // Update friendly URL if provided, or generate new one if name changed
         if (request.getFriendlyUrl() != null && !request.getFriendlyUrl().trim().isEmpty()) {
             String newFriendlyUrl = request.getFriendlyUrl();
@@ -283,12 +283,12 @@ public class ProductServiceImpl implements ProductService {
             newFriendlyUrl = ensureUniqueFriendlyUrl(newFriendlyUrl);
             product.setFriendlyUrl(newFriendlyUrl);
         }
-        
+
         product.setPrice(request.getPrice());
         product.setDiscountPrice(request.getDiscountPrice());
         product.setStockQuantity(request.getStockQuantity());
         product.setCategory(category);
-        
+
         if (request.getBrandId() != null) {
             Brand brand = brandRepository.findById(request.getBrandId())
                     .orElseThrow(() -> new ResourceNotFoundException("Brand not found"));
@@ -296,7 +296,7 @@ public class ProductServiceImpl implements ProductService {
         } else {
             product.setBrand(null);
         }
-        
+
         if (request.getTags() != null) {
             Set<Tag> tags = new HashSet<>();
             for (String tagName : request.getTags()) {
@@ -307,11 +307,11 @@ public class ProductServiceImpl implements ProductService {
             // Directly set the tags as Set<Tag>
             product.setTags(tags);
         }
-        
+
         if (request.getFeatured() != null) {
             product.setFeatured(request.getFeatured());
         }
-        
+
         if (request.getActive() != null) {
             if (Boolean.TRUE.equals(request.getActive())) {
                 product.activate();
@@ -319,11 +319,11 @@ public class ProductServiceImpl implements ProductService {
                 product.deactivate();
             }
         }
-        
+
         product = productRepository.save(product);
         return productMapper.toProductResponse(product);
     }
-    
+
     /**
      * Delete product with cache eviction.
      * Time Complexity: O(1) - database delete with index
@@ -337,17 +337,17 @@ public class ProductServiceImpl implements ProductService {
         if (!productRepository.existsById(id)) {
             throw new ProductNotFoundException(id);
         }
-        
+
         // Check for active orders before deletion
         List<OrderItem> activeOrders = orderItemRepository.findByProductId(id);
         if (!activeOrders.isEmpty()) {
-            throw new ProductDeletionException(id, 
-                "Product has " + activeOrders.size() + " active order items");
+            throw new ProductDeletionException(id,
+                    "Product has " + activeOrders.size() + " active order items");
         }
-        
+
         productRepository.deleteById(id);
     }
-    
+
     /**
      * Create product with automatic category creation/selection.
      * 
@@ -363,28 +363,28 @@ public class ProductServiceImpl implements ProductService {
         Category category = null;
         if (request.getCategoryId() != null) {
             category = categoryRepository.findById(request.getCategoryId())
-                .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
+                    .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
         } else if (request.getNewCategoryName() != null && !request.getNewCategoryName().isEmpty()) {
             category = categoryRepository.findByName(request.getNewCategoryName())
-                .orElseGet(() -> categoryRepository.save(new Category(request.getNewCategoryName())));
+                    .orElseGet(() -> categoryRepository.save(new Category(request.getNewCategoryName())));
         } else {
             throw new IllegalArgumentException("Either categoryId or newCategoryName must be provided");
         }
 
         Product product = Product.builder()
-            .name(request.getName())
-            .price(request.getPrice())
-            .category(category)
-            .status(ProductStatus.ACTIVE)
-            .build();
+                .name(request.getName())
+                .price(request.getPrice())
+                .category(category)
+                .status(ProductStatus.ACTIVE)
+                .build();
         product = productRepository.save(product);
         return productMapper.toProductResponse(product);
     }
-    
+
     // ═══════════════════════════════════════════════════════════════
     // QUERY OPERATIONS
     // ═══════════════════════════════════════════════════════════════
-    
+
     /**
      * Find product by ID with Optional return.
      * 
@@ -399,7 +399,7 @@ public class ProductServiceImpl implements ProductService {
         return productRepository.findById(id)
                 .map(productMapper::toProductResponse);
     }
-    
+
     /**
      * Find product by SKU with Optional return.
      * 
@@ -413,7 +413,7 @@ public class ProductServiceImpl implements ProductService {
         return productRepository.findBySku(sku)
                 .map(productMapper::toProductResponse);
     }
-    
+
     /**
      * Find product by friendly URL with Optional return.
      * 
@@ -427,11 +427,12 @@ public class ProductServiceImpl implements ProductService {
         return productRepository.findByFriendlyUrl(friendlyUrl)
                 .map(productMapper::toProductResponse);
     }
-    
+
     /**
      * Get multiple products by IDs in batch.
      * 
-     * <p>Performance: O(n) where n = ids.size()
+     * <p>
+     * Performance: O(n) where n = ids.size()
      * 
      * @param ids set of product IDs (max 100)
      * @return map of ID to ProductResponse
@@ -443,35 +444,35 @@ public class ProductServiceImpl implements ProductService {
         if (ids.isEmpty()) {
             return Collections.emptyMap();
         }
-        
+
         if (ids.size() > MAX_BATCH_SIZE) {
             throw new IllegalArgumentException(
-                "Batch size " + ids.size() + " exceeds maximum " + MAX_BATCH_SIZE);
+                    "Batch size " + ids.size() + " exceeds maximum " + MAX_BATCH_SIZE);
         }
-        
+
         List<Product> products = productRepository.findAllById(ids);
         return products.stream()
                 .collect(Collectors.toMap(
-                    Product::getId,
-                    productMapper::toProductResponse
-                ));
+                        Product::getId,
+                        productMapper::toProductResponse));
     }
-    
+
     // ═══════════════════════════════════════════════════════════════
     // SEARCH & FILTER OPERATIONS
     // ═══════════════════════════════════════════════════════════════
-    
+
     /**
      * Search products using dynamic criteria with Specification pattern.
      * 
-     * <p>Supports filtering by:
+     * <p>
+     * Supports filtering by:
      * <ul>
-     *   <li>Keyword (name, description, SKU)</li>
-     *   <li>Category, Brand, Shop</li>
-     *   <li>Price range</li>
-     *   <li>Tags</li>
-     *   <li>Featured status</li>
-     *   <li>Stock availability</li>
+     * <li>Keyword (name, description, SKU)</li>
+     * <li>Category, Brand, Shop</li>
+     * <li>Price range</li>
+     * <li>Tags</li>
+     * <li>Featured status</li>
+     * <li>Stock availability</li>
      * </ul>
      * 
      * @param criteria the search criteria
@@ -482,13 +483,13 @@ public class ProductServiceImpl implements ProductService {
     @Transactional(readOnly = true)
     @PreAuthorize("hasAnyRole('ADMIN','SELLER','CUSTOMER','DELIVERY_AGENT')")
     public PageResponse<ProductResponse> searchProducts(
-            ProductSearchCriteria criteria, 
+            ProductSearchCriteria criteria,
             Pageable pageable) {
         Specification<Product> spec = buildProductSpecification(criteria);
         Page<Product> page = productRepository.findAll(spec, pageable);
         return PageResponse.of(page, productMapper::toProductResponse);
     }
-    
+
     /**
      * Get featured products with pagination.
      * 
@@ -503,7 +504,7 @@ public class ProductServiceImpl implements ProductService {
         Page<Product> page = productRepository.findByFeatured(true, pageable);
         return PageResponse.of(page, productMapper::toProductResponse);
     }
-    
+
     /**
      * Get product by ID with caching
      * Time Complexity: O(1) - cache hit, O(1) - database query with index
@@ -518,7 +519,7 @@ public class ProductServiceImpl implements ProductService {
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + id));
         return productMapper.toProductResponse(product);
     }
-    
+
     @Override
     @Transactional(readOnly = true)
     @PreAuthorize("hasAnyRole('ADMIN','SELLER','CUSTOMER','DELIVERY_AGENT')")
@@ -527,7 +528,7 @@ public class ProductServiceImpl implements ProductService {
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found with SKU: " + sku));
         return productMapper.toProductResponse(product);
     }
-    
+
     @Override
     @Transactional(readOnly = true)
     @PreAuthorize("hasAnyRole('ADMIN','SELLER','CUSTOMER','DELIVERY_AGENT')")
@@ -536,10 +537,10 @@ public class ProductServiceImpl implements ProductService {
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found with URL: " + friendlyUrl));
         return productMapper.toProductResponse(product);
     }
-    
+
     @Override
     @Transactional(readOnly = true)
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','SELLER','CUSTOMER','DELIVERY_AGENT')")
     public PageResponse<ProductListResponse> getAllProducts(Pageable pageable) {
         // Enforce max page size
         int maxPageSize = 50;
@@ -551,7 +552,7 @@ public class ProductServiceImpl implements ProductService {
         var page = productRepository.findAllSummaries(pageable);
         return PageResponse.of(page, productMapper::toProductListResponse);
     }
-    
+
     @Override
     @Cacheable(value = "productList", key = "'category:' + #categoryId + ':' + #pageable.pageNumber + ':' + #pageable.pageSize")
     @Transactional(readOnly = true)
@@ -560,40 +561,39 @@ public class ProductServiceImpl implements ProductService {
         var page = productRepository.findSummariesByCategory(categoryId, pageable);
         return PageResponse.of(page, productMapper::toProductListResponse);
     }
-    
+
     @Override
     @Cacheable(value = "productList", key = "'brand:' + #brandId + ':' + #pageable.pageNumber + ':' + #pageable.pageSize")
     @Transactional(readOnly = true)
     @PreAuthorize("hasAnyRole('ADMIN','SELLER','CUSTOMER','DELIVERY_AGENT')")
     public PageResponse<ProductListResponse> getProductsByBrand(Long brandId, Pageable pageable) {
-        var page = productRepository.findAllSummaries(pageable); // Replace with a projection query for brand if available
+        var page = productRepository.findAllSummaries(pageable); // Replace with a projection query for brand if
+                                                                 // available
         return PageResponse.of(page, productMapper::toProductListResponse);
     }
-    
+
     @Override
-    @Cacheable(value = "productList", key = "'shop:' + #shopId + ':' + #pageable.pageNumber + ':' + #pageable.pageSize")
+    @Cacheable(value = "productList", key = "'store:' + #storeId + ':' + #pageable.pageNumber + ':' + #pageable.pageSize")
     @Transactional(readOnly = true)
     @PreAuthorize("hasAnyRole('ADMIN','SELLER','CUSTOMER','DELIVERY_AGENT')")
-    public PageResponse<ProductListResponse> getProductsByShop(Long shopId, Pageable pageable) {
-        Page<Product> productPage = productRepository.findByShopId(shopId, pageable);
-        Page<ProductListResponse> responsePage = productPage.map(product -> 
-            productMapper.toProductListResponseFromEntity(product)
-        );
+    public PageResponse<ProductListResponse> getProductsByStore(Long storeId, Pageable pageable) {
+        Page<Product> productPage = productRepository.findByStoreId(storeId, pageable);
+        Page<ProductListResponse> responsePage = productPage
+                .map(product -> productMapper.toProductListResponseFromEntity(product));
         return PageResponse.of(responsePage);
     }
-    
+
     @Override
     @Cacheable(value = "productSearch", key = "#keyword + ':' + #pageable.pageNumber + ':' + #pageable.pageSize")
     @Transactional(readOnly = true)
     @PreAuthorize("hasAnyRole('ADMIN','SELLER','CUSTOMER','DELIVERY_AGENT')")
     public PageResponse<ProductListResponse> searchProducts(String keyword, Pageable pageable) {
         Page<Product> productPage = productRepository.searchProducts(keyword, pageable);
-        Page<ProductListResponse> responsePage = productPage.map(product -> 
-            productMapper.toProductListResponseFromEntity(product)
-        );
+        Page<ProductListResponse> responsePage = productPage
+                .map(product -> productMapper.toProductListResponseFromEntity(product));
         return PageResponse.of(responsePage);
     }
-    
+
     @Override
     @Cacheable(value = "productList", key = "'tags:' + #tags?.toString() + ':' + #pageable.pageNumber + ':' + #pageable.pageSize")
     @Transactional(readOnly = true)
@@ -602,30 +602,27 @@ public class ProductServiceImpl implements ProductService {
         Page<Product> page = productRepository.findByTagNames(tags, pageable);
         return PageResponse.of(page, productMapper::toProductResponse);
     }
-    
+
     // (duplicate getFeaturedProducts removed) The cached, paginated implementation
     // appears earlier in this class and will be used by callers.
-    
+
     // ═══════════════════════════════════════════════════════════════
     // BATCH OPERATIONS
     // ═══════════════════════════════════════════════════════════════
-    
+
     @Override
     @Transactional
     @PreAuthorize("hasRole('ADMIN')")
-    @CacheEvict(cacheNames = {"products", "productList", "productCount", "productSearch"}, allEntries = true)
-    @Retryable(
-        retryFor = { org.springframework.dao.OptimisticLockingFailureException.class, org.springframework.dao.ConcurrencyFailureException.class },
-        maxAttempts = 3,
-        backoff = @Backoff(delay = 500, multiplier = 2)
-    )
+    @CacheEvict(cacheNames = { "products", "productList", "productCount", "productSearch" }, allEntries = true)
+    @Retryable(retryFor = { org.springframework.dao.OptimisticLockingFailureException.class,
+            org.springframework.dao.ConcurrencyFailureException.class }, maxAttempts = 3, backoff = @Backoff(delay = 500, multiplier = 2))
     public BatchOperationResult<ProductResponse> createProductsBatch(BatchProductCreateRequest request) {
         log.info("Starting batch product creation: {} items", request.products().size());
         BatchOperationResult.Builder<ProductResponse> resultBuilder = BatchOperationResult.builder();
-        
+
         // Admin batch operations - shopId must be provided in each request
         String adminUserId = "admin-batch";
-        
+
         for (int i = 0; i < request.products().size(); i++) {
             ProductCreateRequest req = request.products().get(i);
             try {
@@ -633,7 +630,7 @@ public class ProductServiceImpl implements ProductService {
                 ProductResponse created = createProduct(req, adminUserId);
                 resultBuilder.addSuccess(created);
                 log.debug("Batch item {}: Created product {}", i, created.getId());
-                
+
             } catch (ResourceAlreadyExistsException e) {
                 log.warn("Batch item {}: Duplicate SKU {}", i, req.getSku());
                 resultBuilder.addFailure(i, req.getSku(), e.getMessage(), "DUPLICATE_SKU");
@@ -644,28 +641,25 @@ public class ProductServiceImpl implements ProductService {
                 log.error("Batch item {}: Unexpected error creating product {}", i, req.getName(), e);
                 resultBuilder.addFailure(i, req.getName(), e.getMessage(), "INTERNAL_ERROR");
             }
-            
+
             if (resultBuilder.hasFailures() && request.options().stopOnError()) {
                 log.warn("Stopping batch at index {} due to stopOnError policy", i);
                 break;
             }
         }
-        
+
         BatchOperationResult<ProductResponse> result = resultBuilder.build();
-        log.info("Batch product creation completed: {} succeeded, {} failed", 
-                 result.successCount(), result.failureCount());
+        log.info("Batch product creation completed: {} succeeded, {} failed",
+                result.successCount(), result.failureCount());
         return result;
     }
-    
+
     @Override
     @Transactional
     @PreAuthorize("hasRole('ADMIN')")
-    @CacheEvict(cacheNames = {"products", "productList", "productCount", "productSearch"}, allEntries = true)
-    @Retryable(
-        retryFor = { org.springframework.dao.OptimisticLockingFailureException.class, org.springframework.dao.ConcurrencyFailureException.class },
-        maxAttempts = 3,
-        backoff = @Backoff(delay = 500, multiplier = 2)
-    )
+    @CacheEvict(cacheNames = { "products", "productList", "productCount", "productSearch" }, allEntries = true)
+    @Retryable(retryFor = { org.springframework.dao.OptimisticLockingFailureException.class,
+            org.springframework.dao.ConcurrencyFailureException.class }, maxAttempts = 3, backoff = @Backoff(delay = 500, multiplier = 2))
     public BatchOperationResult<Long> deleteProductsBatch(List<Long> ids, String userId) {
         log.info("Starting batch product deletion: {} items by user {}", ids.size(), userId);
         BatchOperationResult.Builder<Long> resultBuilder = BatchOperationResult.builder();
@@ -685,7 +679,7 @@ public class ProductServiceImpl implements ProductService {
         }
         BatchOperationResult<Long> result = resultBuilder.build();
         log.info("Batch product deletion completed: {} succeeded, {} failed",
-                 result.successCount(), result.failureCount());
+                result.successCount(), result.failureCount());
         return result;
     }
 
@@ -695,7 +689,8 @@ public class ProductServiceImpl implements ProductService {
     @Recover
     public ProductResponse recoverFromFailure(Exception ex, ProductCreateRequest request) {
         log.error("Failed to create product after retries: {}", ex.getMessage());
-        // If this is a business exception, rethrow it so correct HTTP status is preserved
+        // If this is a business exception, rethrow it so correct HTTP status is
+        // preserved
         if (ex instanceof com.eshop.app.exception.DuplicateResourceException
                 || ex instanceof com.eshop.app.exception.ResourceAlreadyExistsException
                 || ex instanceof com.eshop.app.exception.ResourceNotFoundException) {
@@ -744,89 +739,84 @@ public class ProductServiceImpl implements ProductService {
         }
         throw new RuntimeException("Could not batch delete products after retries", ex);
     }
-    
+
     // ═══════════════════════════════════════════════════════════════
     // STOCK MANAGEMENT
     // ═══════════════════════════════════════════════════════════════
-    
+
     /**
-     * CRITICAL-005 FIX: Updates stock with pessimistic locking to prevent race conditions.
+     * CRITICAL-005 FIX: Updates stock with pessimistic locking to prevent race
+     * conditions.
      * 
-     * <p>Concurrency Control:
+     * <p>
+     * Concurrency Control:
      * <ul>
-     *   <li>Uses PESSIMISTIC_WRITE lock (SELECT FOR UPDATE)</li>
-     *   <li>Prevents lost updates in concurrent stock modifications</li>
-     *   <li>Retry logic handles PessimisticLockingFailureException</li>
+     * <li>Uses PESSIMISTIC_WRITE lock (SELECT FOR UPDATE)</li>
+     * <li>Prevents lost updates in concurrent stock modifications</li>
+     * <li>Retry logic handles PessimisticLockingFailureException</li>
      * </ul>
      * 
-     * @param id product ID
+     * @param id      product ID
      * @param request stock update request
      * @return updated product response
-     * @throws ResourceNotFoundException if product not found
+     * @throws ResourceNotFoundException  if product not found
      * @throws InsufficientStockException if stock would go negative
      */
     @Override
     @Transactional
     @PreAuthorize("hasAnyRole('ADMIN', 'SELLER')")
     @CacheEvict(value = "products", key = "#id")
-    @Retryable(
-        retryFor = {PessimisticLockingFailureException.class},
-        maxAttempts = 3,
-        backoff = @Backoff(delay = 100, multiplier = 2)
-    )
+    @Retryable(retryFor = {
+            PessimisticLockingFailureException.class }, maxAttempts = 3, backoff = @Backoff(delay = 100, multiplier = 2))
     public ProductResponse updateStockAndReturn(Long id, StockUpdateRequest request) {
         log.debug("Updating stock for product {}: {} {}", id, request.operation(), request.quantity());
-        
+
         // CRITICAL-005 FIX: Use pessimistic lock to prevent race conditions
         Product product = productRepository.findByIdForUpdate(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + id));
-        
+
         int oldStock = product.getStockQuantity();
         int newStock = switch (request.operation()) {
             case SET -> request.quantity();
             case INCREMENT -> oldStock + request.quantity();
             case DECREMENT -> oldStock - request.quantity();
         };
-        
+
         if (newStock < 0) {
             throw new InsufficientStockException(
-                String.format("Insufficient stock for product %s: requested %d, available %d",
-                              product.getName(), request.quantity(), oldStock)
-            );
+                    String.format("Insufficient stock for product %s: requested %d, available %d",
+                            product.getName(), request.quantity(), oldStock));
         }
-        
+
         product.setStockQuantity(newStock);
         Product saved = productRepository.save(product);
-        
+
         // Publish event for low stock alert
         if (newStock < productProperties.getLowStockThreshold()) {
             eventPublisher.publishEvent(new LowStockEvent(this, saved));
         }
-        
+
         log.info("Stock updated for product {}: old={}, new={} (pessimistic lock)", id, oldStock, newStock);
         return productMapper.toProductResponse(saved);
     }
-    
+
     /**
      * CRITICAL-005 FIX: Updates stock with pessimistic locking.
      */
     @Override
     @Transactional
     @PreAuthorize("hasRole('ADMIN') or hasRole('SELLER')")
-    @Retryable(
-        retryFor = {PessimisticLockingFailureException.class},
-        maxAttempts = 3,
-        backoff = @Backoff(delay = 100, multiplier = 2)
-    )
+    @Retryable(retryFor = {
+            PessimisticLockingFailureException.class }, maxAttempts = 3, backoff = @Backoff(delay = 100, multiplier = 2))
     public void updateStock(Long productId, Integer quantity) {
         Product product = productRepository.findByIdForUpdate(productId)
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + productId));
-        
+
         int newStock = product.getStockQuantity() + quantity;
         if (newStock < 0) {
             throw new InsufficientStockException("Insufficient stock for product: " + product.getName());
         }
-        
+
         product.setStockQuantity(newStock);
         productRepository.save(product);
     }
@@ -837,11 +827,8 @@ public class ProductServiceImpl implements ProductService {
     @Override
     @Transactional
     @PreAuthorize("hasRole('ADMIN') or hasRole('SELLER')")
-    @Retryable(
-        retryFor = {PessimisticLockingFailureException.class},
-        maxAttempts = 3,
-        backoff = @Backoff(delay = 100, multiplier = 2)
-    )
+    @Retryable(retryFor = {
+            PessimisticLockingFailureException.class }, maxAttempts = 3, backoff = @Backoff(delay = 100, multiplier = 2))
     public void adjustStock(Long productId, int delta) {
         Product product = productRepository.findByIdForUpdate(productId)
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + productId));
@@ -852,7 +839,7 @@ public class ProductServiceImpl implements ProductService {
         product.setStockQuantity(newStock);
         productRepository.save(product);
     }
-    
+
     /**
      * Generate SEO-friendly URL from product name
      */
@@ -863,38 +850,38 @@ public class ProductServiceImpl implements ProductService {
                 .replaceAll("-+", "-") // Replace multiple hyphens with single
                 .replaceAll("^-|-$", ""); // Remove leading/trailing hyphens
     }
-    
+
     /**
      * Ensure friendly URL is unique by appending numbers if needed
      */
     private String ensureUniqueFriendlyUrl(String baseUrl) {
         String friendlyUrl = baseUrl;
         int counter = 1;
-        
+
         while (productRepository.existsByFriendlyUrl(friendlyUrl)) {
             friendlyUrl = baseUrl + "-" + counter;
             counter++;
         }
-        
+
         return friendlyUrl;
     }
 
     private Specification<Product> buildProductSpecification(ProductSearchCriteria criteria) {
         return (root, query, cb) -> {
-            if (criteria == null) return cb.conjunction();
+            if (criteria == null)
+                return cb.conjunction();
             List<Predicate> predicates = new ArrayList<>();
             if (criteria.getKeyword() != null && !criteria.getKeyword().isEmpty()) {
                 String k = "%" + criteria.getKeyword().toLowerCase() + "%";
                 predicates.add(cb.or(
-                    cb.like(cb.lower(root.get("name")), k),
-                    cb.like(cb.lower(root.get("description")), k),
-                    cb.like(cb.lower(root.get("sku")), k)
-                ));
+                        cb.like(cb.lower(root.get("name")), k),
+                        cb.like(cb.lower(root.get("description")), k),
+                        cb.like(cb.lower(root.get("sku")), k)));
             }
             return predicates.isEmpty() ? cb.conjunction() : cb.and(predicates.toArray(new Predicate[0]));
         };
     }
-    
+
     // Dashboard Analytics Methods Implementation
     @Override
     @Transactional(readOnly = true)
@@ -902,41 +889,41 @@ public class ProductServiceImpl implements ProductService {
         // Mock implementation
         return 1000;
     }
-    
+
     @Override
     @Transactional(readOnly = true)
     public long getProductCountBySellerId(Long sellerId) {
         // Mock implementation
         return 200;
     }
-    
+
     @Override
     @Transactional(readOnly = true)
     public long getActiveProductCountBySellerId(Long sellerId) {
         // Mock implementation
         return 180;
     }
-    
+
     @Override
     @Transactional(readOnly = true)
     public long getOutOfStockCountBySellerId(Long sellerId) {
         // Mock implementation
         return 20;
     }
-    
+
     @Override
     @Transactional(readOnly = true)
     public long getLowStockCountBySellerId(Long sellerId) {
 
         // Real implementation
-        return productRepository.countByShopSellerIdAndStockQuantityLessThan(sellerId, LOW_STOCK_THRESHOLD);
+        return productRepository.countByStoreSellerIdAndStockQuantityLessThan(sellerId, LOW_STOCK_THRESHOLD);
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<Map<String, Object>> getProductPerformanceBySellerId(Long sellerId) {
         List<Map<String, Object>> result = new ArrayList<>();
-        List<Product> products = productRepository.findByShopSellerId(sellerId);
+        List<Product> products = productRepository.findByStoreSellerId(sellerId);
         for (Product p : products) {
             Map<String, Object> m = new HashMap<>();
             m.put("productId", p.getId());
@@ -1003,11 +990,11 @@ public class ProductServiceImpl implements ProductService {
     @PreAuthorize("hasRole('ADMIN') or (hasRole('SELLER') and #sellerId == principal.id)")
     public SellerProductDashboard getSellerDashboard(Long sellerId, int topProductsLimit) {
         // Example implementation (replace with real queries as needed)
-        long totalProducts = productRepository.countByShopSellerId(sellerId);
-        long activeProducts = productRepository.countByShopSellerIdAndStatus(sellerId, ProductStatus.ACTIVE);
-        long outOfStock = productRepository.countByShopSellerIdAndStockQuantity(sellerId, 0);
-        long lowStock = productRepository.countByShopSellerIdAndStockQuantityLessThan(sellerId, LOW_STOCK_THRESHOLD);
-        long featuredProducts = productRepository.countByShopSellerIdAndFeaturedTrue(sellerId);
+        long totalProducts = productRepository.countByStoreSellerId(sellerId);
+        long activeProducts = productRepository.countByStoreSellerIdAndStatus(sellerId, ProductStatus.ACTIVE);
+        long outOfStock = productRepository.countByStoreSellerIdAndStockQuantity(sellerId, 0);
+        long lowStock = productRepository.countByStoreSellerIdAndStockQuantityLessThan(sellerId, LOW_STOCK_THRESHOLD);
+        long featuredProducts = productRepository.countByStoreSellerIdAndFeaturedTrue(sellerId);
         long totalInventoryUnits = productRepository.sumStockQuantityBySellerId(sellerId);
         double avgStock = totalProducts > 0 ? (double) totalInventoryUnits / totalProducts : 0.0;
         BigDecimal totalInventoryValue = productRepository.sumInventoryValueBySellerId(sellerId);
@@ -1019,8 +1006,8 @@ public class ProductServiceImpl implements ProductService {
         // Top rated products (mock)
         List<SellerProductDashboard.TopRatedProduct> topRated = Collections.emptyList();
         LocalDateTime now = LocalDateTime.now();
-        long productsAdded30d = productRepository.countByShopSellerIdAndCreatedAtAfter(sellerId, now.minusDays(30));
-        long productsUpdated30d = productRepository.countByShopSellerIdAndUpdatedAtAfter(sellerId, now.minusDays(30));
+        long productsAdded30d = productRepository.countByStoreSellerIdAndCreatedAtAfter(sellerId, now.minusDays(30));
+        long productsUpdated30d = productRepository.countByStoreSellerIdAndUpdatedAtAfter(sellerId, now.minusDays(30));
         return SellerProductDashboard.builder()
                 .sellerId(sellerId)
                 .totalProducts(totalProducts)
@@ -1048,7 +1035,8 @@ public class ProductServiceImpl implements ProductService {
     @PreAuthorize("hasRole('CUSTOMER') and #customerId == principal.id")
     public Optional<String> getFavoriteCategoryByCustomerId(Long customerId) {
         List<Object[]> result = productRepository.findFavoriteCategoryByCustomerId(customerId);
-        if (result.isEmpty()) return Optional.empty();
+        if (result.isEmpty())
+            return Optional.empty();
         return Optional.ofNullable((String) result.get(0)[0]);
     }
 
@@ -1080,18 +1068,21 @@ public class ProductServiceImpl implements ProductService {
                     .averageRating(0.0)
                     .reviewCount(0L)
                     .currentStock(p.getStockQuantity())
-                    .stockStatus(p.getStockQuantity() == 0 ? "OUT_OF_STOCK" : (p.getStockQuantity() < LOW_STOCK_THRESHOLD ? "LOW_STOCK" : "IN_STOCK"))
-                    .sellerId(p.getShop() != null && p.getShop().getSeller() != null ? p.getShop().getSeller().getId() : null)
-                    .shopName(p.getShop() != null ? p.getShop().getShopName() : null)
+                    .stockStatus(p.getStockQuantity() == 0 ? "OUT_OF_STOCK"
+                            : (p.getStockQuantity() < LOW_STOCK_THRESHOLD ? "LOW_STOCK" : "IN_STOCK"))
+                    .sellerId(
+                            p.getStore() != null && p.getStore().getSeller() != null ? p.getStore().getSeller().getId()
+                                    : null)
+                    .shopName(p.getStore() != null ? p.getStore().getStoreName() : null)
                     .build());
         }
         return result;
     }
 
-
     /**
      * Full-text search using PostgreSQL tsvector index.
-     * @param query search keywords
+     * 
+     * @param query    search keywords
      * @param pageable pagination
      * @return paginated product responses
      */
@@ -1110,9 +1101,11 @@ public class ProductServiceImpl implements ProductService {
         if (product.getPrimaryImage() != null) {
             return product.getPrimaryImage().getUrl();
         }
-        // Safely check images collection initialization to avoid LazyInitializationException
+        // Safely check images collection initialization to avoid
+        // LazyInitializationException
         try {
-            if (product.getImages() != null && org.hibernate.Hibernate.isInitialized(product.getImages()) && !product.getImages().isEmpty()) {
+            if (product.getImages() != null && org.hibernate.Hibernate.isInitialized(product.getImages())
+                    && !product.getImages().isEmpty()) {
                 com.eshop.app.entity.ProductImage img = product.getImages().get(0);
                 if (img != null && img.getUrl() != null) {
                     return img.getUrl();

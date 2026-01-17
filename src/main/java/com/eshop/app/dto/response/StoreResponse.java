@@ -11,16 +11,18 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ShopResponse {
+public class StoreResponse {
     
     private Long id;
-    private String shopName;
+    private String storeName;
     private String description;
     private String address;
     private String phone;
     private String email;
     private String logoUrl;
+    private String domain;
     private Boolean active;
+    private Double rating;
     private Long sellerId;
     private String sellerUsername;
     private LocalDateTime createdAt;

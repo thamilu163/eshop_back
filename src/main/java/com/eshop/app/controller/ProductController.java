@@ -422,15 +422,15 @@ public class ProductController extends BaseController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
     
-    @GetMapping("/shop/{shopId}")
+    @GetMapping("/store/{storeId}")
     @Operation(
-        summary = "Get products by shop",
-        description = "Retrieve all products from a specific seller's shop"
+        summary = "Get products by store",
+        description = "Retrieve all products from a specific seller's store"
     )
-    public ResponseEntity<ApiResponse<PageResponse<ProductListResponse>>> getProductsByShop(
-            @PathVariable @Positive Long shopId,
+    public ResponseEntity<ApiResponse<PageResponse<ProductListResponse>>> getProductsByStore(
+            @PathVariable @Positive Long storeId,
             @ParameterObject Pageable pageable) {
-        PageResponse<ProductListResponse> response = productService.getProductsByShop(shopId, pageable);
+        PageResponse<ProductListResponse> response = productService.getProductsByStore(storeId, pageable);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
     

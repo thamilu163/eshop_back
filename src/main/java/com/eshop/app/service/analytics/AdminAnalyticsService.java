@@ -2,7 +2,7 @@ package com.eshop.app.service.analytics;
 
 import com.eshop.app.dto.analytics.AdminStatistics;
 import com.eshop.app.repository.ProductRepositoryEnhanced;
-import com.eshop.app.repository.ShopRepositoryEnhanced;
+import com.eshop.app.repository.StoreRepository;
 import com.eshop.app.repository.UserRepositoryEnhanced;
 import com.eshop.app.repository.analytics.AnalyticsOrderRepository;
 import lombok.RequiredArgsConstructor;
@@ -23,16 +23,20 @@ import org.slf4j.LoggerFactory;
 /**
  * HIGH-001 FIX: Optimized service for admin analytics aggregation.
  * 
- * <p>Performance Improvements:
+ * <p>
+ * Performance Improvements:
  * <ul>
- *   <li>Parallel execution of independent queries (4 sequential → 4 parallel)</li>
- *   <li>Single aggregate queries instead of multiple counts</li>
- *   <li>Proper caching with TTL</li>
- *   <li>CompletableFuture for async coordination</li>
+ * <li>Parallel execution of independent queries (4 sequential → 4
+ * parallel)</li>
+ * <li>Single aggregate queries instead of multiple counts</li>
+ * <li>Proper caching with TTL</li>
+ * <li>CompletableFuture for async coordination</li>
  * </ul>
  * 
- * <p>Time Complexity: O(1) with parallel execution vs O(N) sequential
- * <p>Performance Gain: 4-5 sequential queries → 1 parallel batch (80% reduction)
+ * <p>
+ * Time Complexity: O(1) with parallel execution vs O(N) sequential
+ * <p>
+ * Performance Gain: 4-5 sequential queries → 1 parallel batch (80% reduction)
  * 
  * @author EShop Team
  * @since 2.0.1
@@ -42,11 +46,11 @@ import org.slf4j.LoggerFactory;
 @Transactional(readOnly = true)
 public class AdminAnalyticsService {
     private static final Logger log = LoggerFactory.getLogger(AdminAnalyticsService.class);
-    
+
     private final UserRepositoryEnhanced userRepository;
     private final ProductRepositoryEnhanced productRepository;
     private final AnalyticsOrderRepository analyticsOrderRepository;
-    private final ShopRepositoryEnhanced shopRepository;
+    private final StoreRepository storeRepository;
     private final Executor dashboardExecutor;
 
     /**
@@ -60,45 +64,40 @@ public class AdminAnalyticsService {
     @Cacheable(value = "adminStatistics", key = "'admin-stats'", unless = "#result == null")
     public AdminStatistics getAdminStatistics() {
         log.debug("Calculating admin statistics with parallel execution");
-        
+
         long startTime = System.currentTimeMillis();
-        
+
         try {
             // Parallel execution for independent queries
-            CompletableFuture<Map<String, Object>> userStatsFuture = 
-                    CompletableFuture.supplyAsync(() -> {
-                        log.trace("Fetching user statistics");
-                        return userRepository.getUserStatistics();
-                    }, dashboardExecutor);
-            
-            CompletableFuture<Map<String, Object>> productStatsFuture = 
-                    CompletableFuture.supplyAsync(() -> {
-                        log.trace("Fetching product statistics");
-                        return productRepository.getProductStatistics();
-                    }, dashboardExecutor);
-            
-            CompletableFuture<Map<String, Object>> orderStatsFuture = 
-                    CompletableFuture.supplyAsync(() -> {
-                        LocalDateTime startOfMonth = YearMonth.now().atDay(1).atStartOfDay();
-                        LocalDateTime now = LocalDateTime.now();
-                        log.trace("Fetching order statistics from {} to {}", startOfMonth, now);
-                        return analyticsOrderRepository.getOrderStatistics(startOfMonth, now);
-                    }, dashboardExecutor);
-            
-            CompletableFuture<Map<String, Object>> shopStatsFuture = 
-                    CompletableFuture.supplyAsync(() -> {
-                        log.trace("Fetching shop statistics");
-                        return shopRepository.getShopStatistics();
-                    }, dashboardExecutor);
-            
+            CompletableFuture<Map<String, Object>> userStatsFuture = CompletableFuture.supplyAsync(() -> {
+                log.trace("Fetching user statistics");
+                return userRepository.getUserStatistics();
+            }, dashboardExecutor);
+
+            CompletableFuture<Map<String, Object>> productStatsFuture = CompletableFuture.supplyAsync(() -> {
+                log.trace("Fetching product statistics");
+                return productRepository.getProductStatistics();
+            }, dashboardExecutor);
+
+            CompletableFuture<Map<String, Object>> orderStatsFuture = CompletableFuture.supplyAsync(() -> {
+                LocalDateTime startOfMonth = YearMonth.now().atDay(1).atStartOfDay();
+                LocalDateTime now = LocalDateTime.now();
+                log.trace("Fetching order statistics from {} to {}", startOfMonth, now);
+                return analyticsOrderRepository.getOrderStatistics(startOfMonth, now);
+            }, dashboardExecutor);
+
+            CompletableFuture<Map<String, Object>> storeStatsFuture = CompletableFuture.supplyAsync(() -> {
+                log.trace("Fetching store statistics");
+                return storeRepository.getStoreStatistics();
+            }, dashboardExecutor);
+
             // Wait for all to complete with proper error handling
             CompletableFuture<Void> allFutures = CompletableFuture.allOf(
-                userStatsFuture, 
-                productStatsFuture, 
-                orderStatsFuture, 
-                shopStatsFuture
-            );
-            
+                    userStatsFuture,
+                    productStatsFuture,
+                    orderStatsFuture,
+                    storeStatsFuture);
+
             // Block with timeout
             allFutures.get(10, java.util.concurrent.TimeUnit.SECONDS);
 
@@ -106,8 +105,8 @@ public class AdminAnalyticsService {
             Map<String, Object> userStats = userStatsFuture.join();
             Map<String, Object> productStats = productStatsFuture.join();
             Map<String, Object> orderStats = orderStatsFuture.join();
-            Map<String, Object> shopStats = shopStatsFuture.join();
-            
+            Map<String, Object> storeStats = storeStatsFuture.join();
+
             AdminStatistics statistics = AdminStatistics.builder()
                     .totalUsers(getLong(userStats, "totalUsers"))
                     .totalCustomers(getLong(userStats, "totalCustomers"))
@@ -125,15 +124,15 @@ public class AdminAnalyticsService {
                     .totalRevenue(getBigDecimal(orderStats, "totalRevenue"))
                     .monthlyRevenue(getBigDecimal(orderStats, "monthlyRevenue"))
                     .todayRevenue(getBigDecimal(orderStats, "todayRevenue"))
-                    .totalShops(getLong(shopStats, "totalShops"))
-                    .activeShops(getLong(shopStats, "activeShops"))
+                    .totalShops(getLong(storeStats, "totalShops"))
+                    .activeShops(getLong(storeStats, "activeShops"))
                     .build();
-            
+
             long executionTime = System.currentTimeMillis() - startTime;
             log.info("Admin statistics calculated in {}ms (parallel execution)", executionTime);
-            
+
             return statistics;
-            
+
         } catch (Exception e) {
             log.error("Error calculating admin statistics", e);
             throw new RuntimeException("Failed to calculate admin statistics", e);
@@ -146,7 +145,7 @@ public class AdminAnalyticsService {
     public CompletableFuture<AdminStatistics> getAdminStatisticsAsync() {
         return CompletableFuture.supplyAsync(this::getAdminStatistics, dashboardExecutor);
     }
-    
+
     /**
      * Gets daily sales data for analytics charts.
      * 
@@ -159,18 +158,19 @@ public class AdminAnalyticsService {
     public List<Map<String, Object>> getDailySalesData(int days) {
         LocalDateTime endDate = LocalDateTime.now();
         LocalDateTime startDate = endDate.minusDays(days);
-        
+
         log.debug("Fetching daily sales data for {} days", days);
         return analyticsOrderRepository.getDailySalesData(startDate, endDate);
     }
 
     /**
-     * Async wrapper for daily sales data to be used by controllers for parallel execution.
+     * Async wrapper for daily sales data to be used by controllers for parallel
+     * execution.
      */
     public CompletableFuture<List<Map<String, Object>>> getDailySalesDataAsync(int days) {
         return CompletableFuture.supplyAsync(() -> getDailySalesData(days), dashboardExecutor);
     }
-    
+
     /**
      * Gets revenue breakdown by category.
      * 
@@ -190,22 +190,28 @@ public class AdminAnalyticsService {
     public CompletableFuture<List<Map<String, Object>>> getRevenueByCategoryAsync() {
         return CompletableFuture.supplyAsync(this::getRevenueByCategory, dashboardExecutor);
     }
-    
+
     // Helper methods for safe type conversion
-    
+
     private Long getLong(Map<String, Object> map, String key) {
         Object value = map.get(key);
-        if (value == null) return 0L;
-        if (value instanceof Long) return (Long) value;
-        if (value instanceof Number) return ((Number) value).longValue();
+        if (value == null)
+            return 0L;
+        if (value instanceof Long)
+            return (Long) value;
+        if (value instanceof Number)
+            return ((Number) value).longValue();
         return 0L;
     }
-    
+
     private BigDecimal getBigDecimal(Map<String, Object> map, String key) {
         Object value = map.get(key);
-        if (value == null) return BigDecimal.ZERO;
-        if (value instanceof BigDecimal) return (BigDecimal) value;
-        if (value instanceof Number) return BigDecimal.valueOf(((Number) value).doubleValue());
+        if (value == null)
+            return BigDecimal.ZERO;
+        if (value instanceof BigDecimal)
+            return (BigDecimal) value;
+        if (value instanceof Number)
+            return BigDecimal.valueOf(((Number) value).doubleValue());
         return BigDecimal.ZERO;
     }
 }

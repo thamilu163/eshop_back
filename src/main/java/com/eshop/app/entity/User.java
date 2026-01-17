@@ -16,7 +16,7 @@ import java.util.Set;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@ToString
+@ToString(exclude = { "cart", "store", "orders", "deliveryAgentProfile", "sellerProfile" })
 @EqualsAndHashCode(callSuper = true, of = {"email"})
 public class User extends BaseEntity {
     
@@ -68,7 +68,7 @@ public class User extends BaseEntity {
     private Cart cart;
     
     @OneToOne(mappedBy = "seller", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    private Shop shop;
+    private Store store;
     
     @OneToMany(mappedBy = "customer", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default

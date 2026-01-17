@@ -167,10 +167,11 @@ public class OAuth2SecurityConfig {
         // Read allowed origins from properties
         String originsProp = System.getProperty("app.cors.allowed-origins", System.getenv("APP_CORS_ALLOWED_ORIGINS"));
         if (originsProp == null || originsProp.isBlank()) {
-            originsProp = "http://localhost:3000,http://localhost:4200";
+            originsProp = "http://localhost:3000,http://localhost:4200,http://localhost:3001";
         }
         List<String> allowedOrigins = Arrays.asList(originsProp.split(","));
-        configuration.setAllowedOrigins(allowedOrigins);
+        configuration.setAllowedOrigins(Collections.emptyList()); // Explicitly clear to avoid "*" error with credentials
+        configuration.setAllowedOriginPatterns(allowedOrigins);
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Requested-With", "Accept", "Origin", "X-CSRF-Token", "X-Correlation-ID"));
         configuration.setExposedHeaders(List.of("Authorization", "X-Correlation-ID", "X-RateLimit-Remaining"));

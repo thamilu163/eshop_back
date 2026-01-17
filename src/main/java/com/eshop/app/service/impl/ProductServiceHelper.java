@@ -5,7 +5,7 @@ import com.eshop.app.dto.request.ProductCreateRequest;
 import com.eshop.app.entity.Brand;
 import com.eshop.app.entity.Category;
 import com.eshop.app.entity.Product;
-import com.eshop.app.entity.Shop;
+import com.eshop.app.entity.Store;
 import com.eshop.app.entity.Tag;
 import com.eshop.app.entity.enums.ProductStatus;
 import com.eshop.app.exception.FriendlyUrlGenerationException;
@@ -43,7 +43,7 @@ public class ProductServiceHelper {
     public Product buildProductFromRequest(
             ProductCreateRequest request,
             Category category,
-            Shop shop,
+            Store store,
             Brand brand,
             Set<Tag> tags) {
         
@@ -58,7 +58,7 @@ public class ProductServiceHelper {
             .discountPrice(request.getDiscountPrice())
             .stockQuantity(request.getStockQuantity())
             .category(category)
-            .shop(shop)
+            .store(store)
             .featured(Boolean.TRUE.equals(request.getFeatured()))
             .status(ProductStatus.ACTIVE);
         

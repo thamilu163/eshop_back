@@ -5,7 +5,7 @@ package com.eshop.app.seed.exception;
  * Sealed to enforce controlled exception hierarchy.
  */
 public sealed class SeedingException extends RuntimeException 
-    permits UserSeedingException, CatalogSeedingException, ShopSeedingException, InvalidSeedConfigException {
+        permits UserSeedingException, CatalogSeedingException, StoreSeedingException, InvalidSeedConfigException {
     
     private final SeedPhase phase;
     
@@ -28,7 +28,7 @@ public sealed class SeedingException extends RuntimeException
         CATEGORY_SEEDING,
         BRAND_SEEDING,
         TAG_SEEDING,
-        SHOP_SEEDING,
+        STORE_SEEDING,
         PRODUCT_SEEDING,
         CART_SEEDING,
         CONFIGURATION,

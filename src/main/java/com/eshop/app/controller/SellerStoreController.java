@@ -1,13 +1,13 @@
 package com.eshop.app.controller;
 
 import com.eshop.app.constants.ApiConstants;
-import com.eshop.app.dto.request.ShopCreateRequest;
+import com.eshop.app.dto.request.StoreCreateRequest;
 import com.eshop.app.dto.response.ApiResponse;
-import com.eshop.app.dto.response.ShopResponse;
+import com.eshop.app.dto.response.StoreResponse;
 import com.eshop.app.entity.User;
 import com.eshop.app.exception.ResourceNotFoundException;
 import com.eshop.app.repository.UserRepository;
-import com.eshop.app.service.ShopService;
+import com.eshop.app.service.StoreService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
@@ -66,7 +66,7 @@ import org.springframework.web.bind.annotation.*;
 @Slf4j
 public class SellerStoreController {
     
-    private final ShopService shopService;
+    private final StoreService storeService;
     private final UserRepository userRepository;
     
     /**
@@ -114,8 +114,8 @@ public class SellerStoreController {
                       "message": "Operation successful",
                       "data": {
                         "id": 1,
-                        "shopName": "Tech Gadgets Store",
-                        "shopDescription": "Premium electronics and gadgets",
+                        "storeName": "Tech Gadgets Store",
+                        "description": "Premium electronics and gadgets",
                         "sellerId": 123,
                         "sellerName": "John Doe",
                         "createdAt": "2026-01-10T10:30:00",
@@ -142,7 +142,7 @@ public class SellerStoreController {
             description = "Forbidden - user doesn't have SELLER role"
         )
     })
-    public ResponseEntity<ApiResponse<ShopResponse>> getMyStore(
+    public ResponseEntity<ApiResponse<StoreResponse>> getMyStore(
             Authentication authentication) {
 
         String sellerEmail;
@@ -159,7 +159,7 @@ public class SellerStoreController {
 
         log.info("Fetching store for seller: email={}, id={}", sellerEmail, sellerId);
 
-        ShopResponse store = shopService.getMyShop();
+        StoreResponse store = storeService.getMyStore();
 
         return ResponseEntity.ok(ApiResponse.success(store));
     }
@@ -207,15 +207,15 @@ public class SellerStoreController {
             """,
         security = @SecurityRequirement(name = "Bearer Authentication"),
         requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
-            description = "Store creation request with shop name and description",
+            description = "Store creation request with store name and description",
             required = true,
             content = @Content(
                 mediaType = "application/json",
-                schema = @Schema(implementation = ShopCreateRequest.class),
+                schema = @Schema(implementation = StoreCreateRequest.class),
                 examples = @ExampleObject(value = """
                     {
-                      "shopName": "Tech Gadgets Store",
-                      "shopDescription": "Premium electronics and gadgets for tech enthusiasts"
+                      "storeName": "Tech Gadgets Store",
+                      "description": "Premium electronics and gadgets for tech enthusiasts"
                     }
                     """)
             )
@@ -234,8 +234,8 @@ public class SellerStoreController {
                       "message": "Store created successfully",
                       "data": {
                         "id": 1,
-                        "shopName": "Tech Gadgets Store",
-                        "shopDescription": "Premium electronics and gadgets for tech enthusiasts",
+                        "storeName": "Tech Gadgets Store",
+                        "description": "Premium electronics and gadgets for tech enthusiasts",
                         "sellerId": 123,
                         "sellerName": "John Doe",
                         "createdAt": "2026-01-10T10:30:00",
@@ -266,8 +266,8 @@ public class SellerStoreController {
             description = "Conflict - seller already has a store"
         )
     })
-    public ResponseEntity<ApiResponse<ShopResponse>> createStore(
-            @Valid @RequestBody ShopCreateRequest request,
+    public ResponseEntity<ApiResponse<StoreResponse>> createStore(
+            @Valid @RequestBody StoreCreateRequest request,
             Authentication authentication) {
 
         String sellerEmail;
@@ -283,7 +283,7 @@ public class SellerStoreController {
         }
 
         log.info("Creating store for seller: email={}, subject={}, storeName={}",
-                 sellerEmail, userSubject, request.getShopName());
+                 sellerEmail, userSubject, request.getStoreName());
         
         // Get user from database and auto-populate sellerId and sellerType
         User seller = userRepository.findByEmail(sellerEmail)
@@ -295,7 +295,7 @@ public class SellerStoreController {
         
         log.debug("Auto-populated request: sellerId={}, sellerType={}", seller.getId(), seller.getSellerType());
         
-        ShopResponse store = shopService.createShop(request);
+        StoreResponse store = storeService.createStore(request);
         
         return ResponseEntity
                 .status(HttpStatus.CREATED)
@@ -349,11 +349,11 @@ public class SellerStoreController {
             required = true,
             content = @Content(
                 mediaType = "application/json",
-                schema = @Schema(implementation = ShopCreateRequest.class),
+                schema = @Schema(implementation = StoreCreateRequest.class),
                 examples = @ExampleObject(value = """
                     {
-                      "shopName": "Tech Gadgets Store - Premium",
-                      "shopDescription": "Updated description with new product lines and services"
+                      "storeName": "Tech Gadgets Store - Premium",
+                      "description": "Updated description with new product lines and services"
                     }
                     """)
             )
@@ -372,8 +372,8 @@ public class SellerStoreController {
                       "message": "Store updated successfully",
                       "data": {
                         "id": 1,
-                        "shopName": "Tech Gadgets Store - Premium",
-                        "shopDescription": "Updated description with new product lines and services",
+                        "storeName": "Tech Gadgets Store - Premium",
+                        "description": "Updated description with new product lines and services",
                         "sellerId": 123,
                         "sellerName": "John Doe",
                         "createdAt": "2026-01-10T10:30:00",
@@ -400,8 +400,8 @@ public class SellerStoreController {
             description = "Store not found - seller hasn't created a store yet"
         )
     })
-    public ResponseEntity<ApiResponse<ShopResponse>> updateStore(
-            @Valid @RequestBody ShopCreateRequest request,
+    public ResponseEntity<ApiResponse<StoreResponse>> updateStore(
+            @Valid @RequestBody StoreCreateRequest request,
             Authentication authentication) {
 
         String sellerEmail;
@@ -418,11 +418,11 @@ public class SellerStoreController {
 
         log.info("Updating store for seller: email={}, id={}", sellerEmail, sellerId);
         
-        // Get seller's current shop to get the ID
-        ShopResponse currentStore = shopService.getMyShop();
+        // Get seller's current store to get the ID
+        StoreResponse currentStore = storeService.getMyStore();
         
-        // Update using the existing ShopService
-        ShopResponse updatedStore = shopService.updateShop(currentStore.getId(), request);
+        // Update using the existing StoreService
+        StoreResponse updatedStore = storeService.updateStore(currentStore.getId(), request);
         
         return ResponseEntity.ok(ApiResponse.success("Store updated successfully", updatedStore));
     }
@@ -504,10 +504,10 @@ public class SellerStoreController {
     public ResponseEntity<ApiResponse<Boolean>> checkStoreExists(
             Authentication authentication) {
 
-        // Ensure JWT is present; if not, return false (or could throw AccessDeniedException)
+        // Check if authenticated seller has a store
+        // No need to extract JWT - authentication is already verified by Spring Security
         try {
-            extractJwt(authentication);
-            shopService.getMyShop();
+            storeService.getMyStore();
             return ResponseEntity.ok(ApiResponse.success(true));
         } catch (ResourceNotFoundException e) {
             return ResponseEntity.ok(ApiResponse.success(false));

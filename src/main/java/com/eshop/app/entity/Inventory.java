@@ -19,7 +19,7 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "inventory", indexes = {
     @Index(name = "idx_inventory_product_id", columnList = "product_id", unique = true),
-    @Index(name = "idx_inventory_shop_id", columnList = "shop_id"),
+        @Index(name = "idx_inventory_store_id", columnList = "store_id"),
     @Index(name = "idx_inventory_low_stock", columnList = "quantity,low_stock_threshold"),
     @Index(name = "idx_inventory_out_of_stock", columnList = "quantity"),
     @Index(name = "idx_inventory_updated_at", columnList = "updated_at")
@@ -36,8 +36,8 @@ public class Inventory extends BaseEntity {
     private Product product;
     
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "shop_id", nullable = false)
-    private Shop shop;
+    @JoinColumn(name = "store_id", nullable = false)
+    private Store store;
     
     @Column(name = "quantity", nullable = false, columnDefinition = "INTEGER DEFAULT 0")
     @Builder.Default

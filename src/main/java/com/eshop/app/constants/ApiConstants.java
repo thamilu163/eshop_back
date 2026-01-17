@@ -50,7 +50,7 @@ public final class ApiConstants {
         public static final String PRODUCT_LOCATION = BASE_PATH + "/location";
         public static final String BRANDS = BASE_PATH + "/brands";
         public static final String CATEGORIES = BASE_PATH + "/categories";
-        public static final String SHOPS = BASE_PATH + "/shops";
+        public static final String STORES = BASE_PATH + "/stores";
         public static final String USERS = BASE_PATH + "/users";
         public static final String CART = BASE_PATH + "/cart";
         public static final String ORDERS = BASE_PATH + "/orders";
@@ -86,7 +86,7 @@ public final class ApiConstants {
                 Map.entry("products", PRODUCTS),
                 Map.entry("brands", BRANDS),
                 Map.entry("categories", CATEGORIES),
-                Map.entry("shops", SHOPS),
+                Map.entry("stores", STORES),
                 Map.entry("users", USERS),
                 Map.entry("cart", CART),
                 Map.entry("orders", ORDERS),

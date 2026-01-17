@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class UserResponse {
-    
+
     private Long id;
     private String username;
     private String email;
@@ -26,15 +26,15 @@ public class UserResponse {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private String sellerType;
-    private ShopInfo shop;
-    
+    private StoreInfo shop;
+
     @Data
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
-    public static class ShopInfo {
+    public static class StoreInfo {
         private Long id;
-        private String shopName;
+        private String storeName;
         private String sellerType;
     }
 }

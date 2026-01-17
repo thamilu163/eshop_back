@@ -40,13 +40,14 @@ public class ProductCreateRequestValidationTest {
                 .price(new BigDecimal("100.00"))
                 .discountPrice(new BigDecimal("150.00"))
                 .categoryId(1L)
-                .shopId(1L)
+                .storeId(1L)
                 .build();
 
         Set<ConstraintViolation<ProductCreateRequest>> violations = validator.validate(req);
         assertFalse(violations.isEmpty(), "Expected violations for discount >= price");
         Set<String> messages = violations.stream().map(ConstraintViolation::getMessage).collect(Collectors.toSet());
-        assertTrue(messages.stream().anyMatch(m -> m.toLowerCase().contains("discount")), "Expected discount-related message");
+        assertTrue(messages.stream().anyMatch(m -> m.toLowerCase().contains("discount")),
+                "Expected discount-related message");
     }
 
     @Test
@@ -56,13 +57,15 @@ public class ProductCreateRequestValidationTest {
                 .sku("TP-002")
                 .discountPrice(new BigDecimal("10.00"))
                 .categoryId(1L)
-                .shopId(1L)
+                .storeId(1L)
                 .build();
 
         Set<ConstraintViolation<ProductCreateRequest>> violations = validator.validate(req);
         assertFalse(violations.isEmpty(), "Expected violations when discountPrice present but price missing");
         Set<String> messages = violations.stream().map(ConstraintViolation::getMessage).collect(Collectors.toSet());
-        assertTrue(messages.stream().anyMatch(m -> m.toLowerCase().contains("regular price") || m.toLowerCase().contains("price is required")), "Expected price-related message");
+        assertTrue(messages.stream().anyMatch(
+                m -> m.toLowerCase().contains("regular price") || m.toLowerCase().contains("price is required")),
+                "Expected price-related message");
     }
 
     @Test
@@ -77,7 +80,7 @@ public class ProductCreateRequestValidationTest {
                 .sku("TP-003")
                 .price(new BigDecimal("50.00"))
                 .categoryId(1L)
-                .shopId(1L)
+                .storeId(1L)
                 .tags(tags)
                 .build();
 

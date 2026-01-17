@@ -3,7 +3,7 @@ package com.eshop.app.service.analytics;
 import com.eshop.app.dto.response.SellerDashboardResponse;
 import com.eshop.app.service.OrderService;
 import com.eshop.app.service.ProductService;
-import com.eshop.app.service.ShopService;
+import com.eshop.app.service.StoreService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -25,7 +25,7 @@ public class SellerAggregationServiceTest {
     OrderService orderService;
 
     @Mock
-    ShopService shopService;
+    StoreService storeService;
 
     Executor dashboardExecutor = r -> r.run();
 
@@ -33,14 +33,14 @@ public class SellerAggregationServiceTest {
     SellerAggregationService aggregationService;
 
     @Test
-    void buildShopOverview_returnsNonNull() {
-        when(shopService.getShopNameBySellerId(1L)).thenReturn("Demo Shop");
+    void buildStoreOverview_returnsNonNull() {
+        when(storeService.getStoreNameBySellerId(1L)).thenReturn("Demo Store");
         when(productService.getProductCountBySellerId(1L)).thenReturn(5L);
         when(productService.getActiveProductCountBySellerId(1L)).thenReturn(4L);
         when(productService.getOutOfStockCountBySellerId(1L)).thenReturn(1L);
-        when(shopService.getShopRatingBySellerId(1L)).thenReturn(4.5);
+        when(storeService.getStoreRatingBySellerId(1L)).thenReturn(4.5);
 
-        SellerDashboardResponse.ShopOverview ov = aggregationService.buildShopOverview(1L);
+        SellerDashboardResponse.StoreOverview ov = aggregationService.buildStoreOverview(1L);
         assertNotNull(ov);
     }
 

@@ -3,7 +3,7 @@ package com.eshop.app.service.analytics;
 import com.eshop.app.dto.response.AdminDashboardResponse;
 import com.eshop.app.service.OrderService;
 import com.eshop.app.service.ProductService;
-import com.eshop.app.service.ShopService;
+import com.eshop.app.service.StoreService;
 import com.eshop.app.service.UserService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -29,7 +29,7 @@ public class AdminAggregationServiceTest {
     ProductService productService;
 
     @Mock
-    ShopService shopService;
+    StoreService storeService;
 
     @Mock
     OrderService orderService;
@@ -43,7 +43,7 @@ public class AdminAggregationServiceTest {
     void getOverviewStats_returnsNonNull() {
         when(userService.getTotalUserCount()).thenReturn(10L);
         when(productService.getTotalProductCount()).thenReturn(20L);
-        when(shopService.getTotalShopCount()).thenReturn(3L);
+        when(storeService.getTotalStoreCount()).thenReturn(3L);
         when(orderService.getTotalOrderCount()).thenReturn(5L);
         when(orderService.getPendingOrderCount()).thenReturn(1L);
         when(orderService.getTodayOrderCount()).thenReturn(0L);

@@ -96,8 +96,8 @@ public class Order extends BaseEntity {
     private User deliveryAgent;
     
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "shop_id")
-    private Shop shop;
+    @JoinColumn(name = "store_id")
+    private Store store;
         // Explicit getter for customer (required by some services)
         public User getCustomer() {
             return this.customer;

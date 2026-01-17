@@ -43,8 +43,8 @@ public class ProductLocationSearchRequest {
     @Schema(description = "Country filter", example = "USA")
     private String country;
 
-    @Schema(description = "Specific shop ID filter", example = "1")
-    private Long shopId;
+    @Schema(description = "Specific store ID filter", example = "1")
+    private Long storeId;
 
     @Schema(description = "Only show in-stock products", example = "true")
     @Builder.Default

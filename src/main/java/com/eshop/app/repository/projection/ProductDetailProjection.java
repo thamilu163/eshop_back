@@ -50,8 +50,8 @@ public class ProductDetailProjection {
     private final String categoryName;
     private final Long brandId;
     private final String brandName;
-    private final Long shopId;
-    private final String shopName;
+    private final Long storeId;
+    private final String storeName;
     private final LocalDateTime createdAt;
     private final LocalDateTime updatedAt;
     private final Long version;
@@ -61,7 +61,7 @@ public class ProductDetailProjection {
             BigDecimal price, BigDecimal discountPrice, Integer stockQuantity, String imageUrl,
             ProductStatus status, Boolean featured, Boolean isMaster,
             Long categoryId, String categoryName, Long brandId, String brandName,
-            Long shopId, String shopName,
+            Long storeId, String storeName,
             LocalDateTime createdAt, LocalDateTime updatedAt, Long version) {
         this.id = id;
         this.name = name;
@@ -79,8 +79,8 @@ public class ProductDetailProjection {
         this.categoryName = categoryName;
         this.brandId = brandId;
         this.brandName = brandName;
-        this.shopId = shopId;
-        this.shopName = shopName;
+        this.storeId = storeId;
+        this.storeName = storeName;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
         this.version = version;
@@ -103,8 +103,8 @@ public class ProductDetailProjection {
     public String getCategoryName() { return categoryName; }
     public Long getBrandId() { return brandId; }
     public String getBrandName() { return brandName; }
-    public Long getShopId() { return shopId; }
-    public String getShopName() { return shopName; }
+    public Long getStoreId() { return storeId; }
+    public String getStoreName() { return storeName; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public Long getVersion() { return version; }

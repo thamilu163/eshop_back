@@ -57,9 +57,9 @@ public interface CouponService {
     PageResponse<CouponResponse> getActiveCoupons(Pageable pageable);
     
     /**
-     * Get coupons by shop
+     * Get coupons by store
      */
-    PageResponse<CouponResponse> getCouponsByShop(Long shopId, Pageable pageable);
+    PageResponse<CouponResponse> getCouponsByStore(Long storeId, Pageable pageable);
     
     /**
      * Get coupons by category
@@ -84,7 +84,7 @@ public interface CouponService {
      */
     CouponResponse.ValidationResult validateCoupon(String code, Long userId, 
                                                   BigDecimal orderTotal, 
-                                                  Long shopId, Long categoryId);
+                                                  Long storeId, Long categoryId);
     
     /**
      * Apply coupon to order (use coupon)
@@ -105,10 +105,10 @@ public interface CouponService {
      * Returns all valid coupons that user can apply to current order
      */
     List<CouponResponse> getApplicableCoupons(Long userId, BigDecimal orderTotal, 
-                                            Long shopId, Long categoryId);
+                                            Long storeId, Long categoryId);
     
     /**
-     * Get global active coupons (not shop/category specific)
+     * Get global active coupons (not store/category specific)
      */
     List<CouponResponse> getGlobalActiveCoupons();
     

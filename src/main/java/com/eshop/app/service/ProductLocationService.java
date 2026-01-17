@@ -8,7 +8,7 @@ import org.springframework.data.domain.Page;
  * Service interface for location-based product search operations
  */
 public interface ProductLocationService {
-    
+
     /**
      * Search products based on user's location and filters
      * 
@@ -16,7 +16,7 @@ public interface ProductLocationService {
      * @return Page of products with distance information
      */
     Page<ProductLocationResponse> searchProductsByLocation(ProductLocationSearchRequest request);
-    
+
     /**
      * Calculate distance between two geographical points using Haversine formula
      * 
@@ -27,7 +27,7 @@ public interface ProductLocationService {
      * @return Distance in kilometers
      */
     Double calculateDistance(Double lat1, Double lon1, Double lat2, Double lon2);
-    
+
     /**
      * Convert kilometers to miles
      * 
@@ -35,7 +35,7 @@ public interface ProductLocationService {
      * @return Distance in miles
      */
     Double convertKmToMiles(Double kilometers);
-    
+
     /**
      * Get user's location from Google Geolocation API
      * (Requires Google API key)
@@ -45,6 +45,7 @@ public interface ProductLocationService {
      */
     Double[] getUserLocationFromIp(String ipAddress);
 
-    // New: search by shop id (simple wrapper)
-    org.springframework.data.domain.Page<com.eshop.app.dto.response.ProductLocationResponse> searchProductsByShop(Long shopId, int page, int size);
+    // New: search by store id (simple wrapper)
+    org.springframework.data.domain.Page<com.eshop.app.dto.response.ProductLocationResponse> searchProductsByStore(
+            Long storeId, int page, int size);
 }

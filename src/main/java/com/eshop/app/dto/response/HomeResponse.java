@@ -37,7 +37,7 @@ public class HomeResponse {
                         "products", ApiConstants.Endpoints.PRODUCTS,
                         "brands", ApiConstants.Endpoints.BRANDS,
                         "categories", ApiConstants.Endpoints.CATEGORIES,
-                        "shops", ApiConstants.Endpoints.SHOPS
+                        "stores", ApiConstants.Endpoints.STORES
                 ))
                 .timestamp(LocalDateTime.now())
                 .build();
@@ -52,14 +52,14 @@ public class HomeResponse {
                 .availableActions(List.of(
                         "Manage Users",
                         "Manage Products", 
-                        "Manage Shops",
+                        "Manage Stores",
                         "View Analytics",
                         "System Settings"
                 ))
                 .quickLinks(Map.of(
                         "users", ApiConstants.BASE_PATH + "/admin/users",
                         "products", ApiConstants.BASE_PATH + "/admin/products",
-                        "shops", ApiConstants.BASE_PATH + "/admin/shops",
+                        "stores", ApiConstants.BASE_PATH + "/admin/stores",
                         "analytics", ApiConstants.BASE_PATH + "/admin/analytics"
                 ))
                 .timestamp(LocalDateTime.now())
@@ -75,7 +75,7 @@ public class HomeResponse {
                 .availableActions(List.of(
                         "Manage Products",
                         "View Orders",
-                        "Shop Settings", 
+                        "Store Settings", 
                         "Sales Analytics",
                         "Customer Reviews"
                 ))

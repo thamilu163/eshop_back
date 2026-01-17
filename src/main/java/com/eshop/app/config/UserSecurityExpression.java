@@ -1,7 +1,7 @@
 package com.eshop.app.config;
 
 import com.eshop.app.repository.OrderRepository;
-import com.eshop.app.repository.ShopRepository;
+import com.eshop.app.repository.StoreRepository;
 import com.eshop.app.security.UserDetailsImpl;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -46,7 +46,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class UserSecurityExpression {
 
-    private final ShopRepository shopRepository;
+    private final StoreRepository storeRepository;
     private final OrderRepository orderRepository;
 
     // ==================== Core User Checks ====================
@@ -166,15 +166,15 @@ public class UserSecurityExpression {
      * @param shopId the shop ID to check
      * @return true if current user is the shop owner
      */
-    public boolean ownsShop(Long shopId) {
-        if (shopId == null) return false;
+    public boolean ownsStore(Long storeId) {
+        if (storeId == null) return false;
 
         return getCurrentUserId()
                 .map(userId -> {
-                    boolean owns = shopRepository.findById(shopId)
+                    boolean owns = storeRepository.findById(storeId)
                             .map(s -> s.getSeller() != null && Objects.equals(s.getSeller().getId(), userId))
                             .orElse(false);
-                    log.debug("ownsShop({}) for user {} = {}", shopId, userId, owns);
+                    log.debug("ownsStore({}) for user {} = {}", storeId, userId, owns);
                     return owns;
                 })
                 .orElse(false);
@@ -187,8 +187,8 @@ public class UserSecurityExpression {
      * @param shopId the shop ID
      * @return true if user can manage the shop
      */
-    public boolean canManageShop(Long shopId) {
-        return isAdmin() || ownsShop(shopId);
+    public boolean canManageStore(Long storeId) {
+        return isAdmin() || ownsStore(storeId);
     }
 
     /**
@@ -215,22 +215,22 @@ public class UserSecurityExpression {
      * @return true if user can view the order
      */
     public boolean canViewOrder(Long orderId) {
-        return isAdmin() || ownsOrder(orderId) || isOrderShopOwner(orderId);
+        return isAdmin() || ownsOrder(orderId) || isOrderStoreOwner(orderId);
     }
 
     /**
      * Checks if the current user's shop is associated with the order.
      */
-    public boolean isOrderShopOwner(Long orderId) {
+    public boolean isOrderStoreOwner(Long orderId) {
         if (orderId == null) return false;
 
         return getCurrentUserId()
             .map(userId -> orderRepository.findById(orderId)
                 .map(o -> o.getItems().stream()
                     .anyMatch(i -> i.getProduct() != null
-                        && i.getProduct().getShop() != null
-                        && i.getProduct().getShop().getSeller() != null
-                        && Objects.equals(i.getProduct().getShop().getSeller().getId(), userId)))
+                        && i.getProduct().getStore() != null
+                        && i.getProduct().getStore().getSeller() != null
+                        && Objects.equals(i.getProduct().getStore().getSeller().getId(), userId)))
                 .orElse(false))
             .orElse(false);
     }

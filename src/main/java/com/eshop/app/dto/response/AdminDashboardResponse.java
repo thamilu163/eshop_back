@@ -29,7 +29,7 @@ public class AdminDashboardResponse {
     public static class OverviewStats {
         private Long totalUsers;
         private Long totalProducts;
-        private Long totalShops;
+        private Long totalStores;
         private Long totalOrders;
         private Long pendingOrders;
         private Long todayOrders;

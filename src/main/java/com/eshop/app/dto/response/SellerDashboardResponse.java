@@ -13,7 +13,7 @@ import java.util.List;
 @AllArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class SellerDashboardResponse {
-    private ShopOverview shopOverview;
+    private StoreOverview storeOverview;
     private SalesMetrics salesMetrics;
     private OrderManagement orderManagement;
     private List<?> topProducts;
@@ -25,13 +25,13 @@ public class SellerDashboardResponse {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
-    public static class ShopOverview {
-        private String shopName;
-        private String shopStatus;
+    public static class StoreOverview {
+        private String storeName;
+        private String storeStatus;
         private Long totalProducts;
         private Long activeProducts;
         private Long outOfStockProducts;
-        private Double shopRating;
+        private Double storeRating;
     }
 
     @Data

@@ -100,7 +100,7 @@ public interface ProductService {
 
     PageResponse<ProductListResponse> getProductsByBrand(@NotNull @Positive Long brandId, @NotNull Pageable pageable);
 
-    PageResponse<ProductListResponse> getProductsByShop(@NotNull @Positive Long shopId, @NotNull Pageable pageable);
+    PageResponse<ProductListResponse> getProductsByStore(@NotNull @Positive Long storeId, @NotNull Pageable pageable);
 
     PageResponse<ProductListResponse> searchProducts(String keyword, @NotNull Pageable pageable);
 

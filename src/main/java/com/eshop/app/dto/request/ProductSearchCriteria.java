@@ -15,7 +15,7 @@ public class ProductSearchCriteria {
 
     private Long brandId;
 
-    private Long shopId;
+    private Long storeId;
 
     @DecimalMin("0.0")
     private BigDecimal minPrice;
@@ -61,12 +61,12 @@ public class ProductSearchCriteria {
         this.brandId = brandId;
     }
 
-    public Long getShopId() {
-        return shopId;
+    public Long getStoreId() {
+        return storeId;
     }
-
-    public void setShopId(Long shopId) {
-        this.shopId = shopId;
+ 
+    public void setStoreId(Long storeId) {
+        this.storeId = storeId;
     }
 
     public BigDecimal getMinPrice() {

@@ -35,5 +35,5 @@ public class ProductListResponse {
     private Integer stockQuantity;
     private String categoryName;
     private String brandName;
-    private String shopName;
+    private String storeName;
 }

@@ -103,14 +103,14 @@ public class CouponController {
         return ResponseEntity.ok(coupons);
     }
     
-    @GetMapping("/shop/{shopId}")
-    @Operation(summary = "Get Shop Coupons", 
-               description = "Retrieve coupons for a specific shop")
+    @GetMapping("/store/{storeId}")
+    @Operation(summary = "Get Store Coupons", 
+               description = "Retrieve coupons for a specific store")
     @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
-    public ResponseEntity<PageResponse<CouponResponse>> getCouponsByShop(
-            @Parameter(description = "Shop ID") @PathVariable Long shopId,
+    public ResponseEntity<PageResponse<CouponResponse>> getCouponsByStore(
+            @Parameter(description = "Store ID") @PathVariable Long storeId,
             @PageableDefault(size = 20) Pageable pageable) {
-        PageResponse<CouponResponse> coupons = couponService.getCouponsByShop(shopId, pageable);
+        PageResponse<CouponResponse> coupons = couponService.getCouponsByStore(storeId, pageable);
         return ResponseEntity.ok(coupons);
     }
     
@@ -134,9 +134,9 @@ public class CouponController {
             @Parameter(description = "Coupon code") @RequestParam String code,
             @Parameter(description = "User ID") @RequestParam Long userId,
             @Parameter(description = "Order total") @RequestParam BigDecimal orderTotal,
-            @Parameter(description = "Shop ID (optional)") @RequestParam(required = false) Long shopId,
+            @Parameter(description = "Store ID (optional)") @RequestParam(required = false) Long storeId,
             @Parameter(description = "Category ID (optional)") @RequestParam(required = false) Long categoryId) {
-        CouponResponse.ValidationResult result = couponService.validateCoupon(code, userId, orderTotal, shopId, categoryId);
+        CouponResponse.ValidationResult result = couponService.validateCoupon(code, userId, orderTotal, storeId, categoryId);
         return ResponseEntity.ok(result);
     }
     
@@ -159,9 +159,9 @@ public class CouponController {
     public ResponseEntity<List<CouponResponse>> getApplicableCoupons(
             @Parameter(description = "User ID") @RequestParam Long userId,
             @Parameter(description = "Order total") @RequestParam BigDecimal orderTotal,
-            @Parameter(description = "Shop ID (optional)") @RequestParam(required = false) Long shopId,
+            @Parameter(description = "Store ID (optional)") @RequestParam(required = false) Long storeId,
             @Parameter(description = "Category ID (optional)") @RequestParam(required = false) Long categoryId) {
-        List<CouponResponse> coupons = couponService.getApplicableCoupons(userId, orderTotal, shopId, categoryId);
+        List<CouponResponse> coupons = couponService.getApplicableCoupons(userId, orderTotal, storeId, categoryId);
         return ResponseEntity.ok(coupons);
     }
     

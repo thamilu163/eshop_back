@@ -25,15 +25,15 @@ import java.util.*;
  * 
  * <h2>Features:</h2>
  * <ul>
- *   <li>Master/variant product hierarchy with parent-child relationships</li>
- *   <li>Soft delete with automatic timestamp tracking</li>
- *   <li>Optimistic locking for concurrent update handling</li>
- *   <li>Complete audit trail with user and timestamp tracking</li>
- *   <li>Dynamic attributes for flexible product specifications</li>
- *   <li>Multi-warehouse inventory support</li>
- *   <li>SEO optimization fields</li>
- *   <li>Scheduled pricing and visibility</li>
- *   <li>Digital product support</li>
+ * <li>Master/variant product hierarchy with parent-child relationships</li>
+ * <li>Soft delete with automatic timestamp tracking</li>
+ * <li>Optimistic locking for concurrent update handling</li>
+ * <li>Complete audit trail with user and timestamp tracking</li>
+ * <li>Dynamic attributes for flexible product specifications</li>
+ * <li>Multi-warehouse inventory support</li>
+ * <li>SEO optimization fields</li>
+ * <li>Scheduled pricing and visibility</li>
+ * <li>Digital product support</li>
  * </ul>
  * 
  * @author E-Shop Team
@@ -41,13 +41,11 @@ import java.util.*;
  * @since 2024
  */
 @Entity
-@Table(
-    name = "products",
-    indexes = {
+@Table(name = "products", indexes = {
         @Index(name = "idx_product_sku", columnList = "sku"),
         @Index(name = "idx_product_category", columnList = "category_id"),
         @Index(name = "idx_product_brand", columnList = "brand_id"),
-        @Index(name = "idx_product_shop", columnList = "shop_id"),
+        @Index(name = "idx_product_store", columnList = "store_id"),
         @Index(name = "idx_product_status", columnList = "status, deleted"),
         @Index(name = "idx_product_featured", columnList = "featured, status"),
         @Index(name = "idx_product_price", columnList = "price"),
@@ -57,62 +55,44 @@ import java.util.*;
         @Index(name = "idx_product_friendly_url", columnList = "friendly_url"),
         @Index(name = "idx_product_visibility", columnList = "visible_from, visible_to, status"),
         @Index(name = "idx_product_type", columnList = "product_type")
-    },
-    uniqueConstraints = {
+}, uniqueConstraints = {
         @UniqueConstraint(name = "uk_product_sku", columnNames = "sku"),
         @UniqueConstraint(name = "uk_product_friendly_url", columnNames = "friendly_url")
-    }
-)
+})
 @SQLDelete(sql = "UPDATE products SET deleted = true, deleted_at = CURRENT_TIMESTAMP, " +
-                 "deleted_by = (SELECT current_user()), version = version + 1 WHERE id = ? AND version = ?")
+        "deleted_by = (SELECT current_user()), version = version + 1 WHERE id = ? AND version = ?")
 @SQLRestriction("deleted = false")
 @EntityListeners(AuditingEntityListener.class)
 @NamedEntityGraphs({
-    @NamedEntityGraph(
-        name = "Product.summary",
-        attributeNodes = {
-            @NamedAttributeNode("category"),
-            @NamedAttributeNode("brand")
-        }
-    ),
-    @NamedEntityGraph(
-        name = "Product.withBasicRelations",
-        attributeNodes = {
-            @NamedAttributeNode("category"),
-            @NamedAttributeNode("brand"),
-            @NamedAttributeNode("shop"),
-            @NamedAttributeNode("taxClass"),
-            @NamedAttributeNode("primaryImage")
-        }
-    ),
-    @NamedEntityGraph(
-        name = "Product.withAllRelations",
-        attributeNodes = {
-            @NamedAttributeNode("category"),
-            @NamedAttributeNode("brand"),
-            @NamedAttributeNode("shop"),
-            @NamedAttributeNode("taxClass"),
-            @NamedAttributeNode("tags"),
-            @NamedAttributeNode("images"),
-            @NamedAttributeNode(value = "variants", subgraph = "variant-subgraph")
-        },
-        subgraphs = {
-            @NamedSubgraph(
-                name = "variant-subgraph",
-                attributeNodes = {
-                    @NamedAttributeNode("images")
-                }
-            )
-        }
-    ),
-    @NamedEntityGraph(
-        name = "Product.forCart",
-        attributeNodes = {
-            @NamedAttributeNode("primaryImage"),
-            @NamedAttributeNode("taxClass"),
-            @NamedAttributeNode("shippingClass")
-        }
-    )
+        @NamedEntityGraph(name = "Product.summary", attributeNodes = {
+                @NamedAttributeNode("category"),
+                @NamedAttributeNode("brand")
+        }),
+        @NamedEntityGraph(name = "Product.withBasicRelations", attributeNodes = {
+                @NamedAttributeNode("category"),
+                @NamedAttributeNode("brand"),
+                @NamedAttributeNode("store"),
+                @NamedAttributeNode("taxClass"),
+                @NamedAttributeNode("primaryImage")
+        }),
+        @NamedEntityGraph(name = "Product.withAllRelations", attributeNodes = {
+                @NamedAttributeNode("category"),
+                @NamedAttributeNode("brand"),
+                @NamedAttributeNode("store"),
+                @NamedAttributeNode("taxClass"),
+                @NamedAttributeNode("tags"),
+                @NamedAttributeNode("images"),
+                @NamedAttributeNode(value = "variants", subgraph = "variant-subgraph")
+        }, subgraphs = {
+                @NamedSubgraph(name = "variant-subgraph", attributeNodes = {
+                        @NamedAttributeNode("images")
+                })
+        }),
+        @NamedEntityGraph(name = "Product.forCart", attributeNodes = {
+                @NamedAttributeNode("primaryImage"),
+                @NamedAttributeNode("taxClass"),
+                @NamedAttributeNode("shippingClass")
+        })
 })
 @Getter
 @Setter
@@ -171,7 +151,7 @@ public class Product {
     private ProductCondition condition = ProductCondition.NEW;
 
     // ==================== CORE PRODUCT INFORMATION ====================
-    
+
     @NotBlank(message = "Product name is required")
     @Size(min = 2, max = 255, message = "Name must be between 2 and 255 characters")
     @Column(name = "name", nullable = false, length = 255)
@@ -199,7 +179,7 @@ public class Product {
     private String specifications;
 
     // ==================== IDENTIFIERS ====================
-    
+
     @Pattern(regexp = "^[A-Z0-9-]{3,50}$", message = "SKU must be 3-50 characters: uppercase letters, numbers, and hyphens")
     @Column(name = "sku", unique = true, length = 50)
     @ToString.Include
@@ -223,9 +203,8 @@ public class Product {
      * International Standard Book Number (for books).
      */
     @Pattern(regexp = "^(?:ISBN(?:-1[03])?:? )?(?=[0-9X]{10}$|(?=(?:[0-9]+[- ]){3})" +
-             "[- 0-9X]{13}$|97[89][0-9]{10}$|(?=(?:[0-9]+[- ]){4})[- 0-9]{17}$)" +
-             "(?:97[89][- ]?)?[0-9]{1,5}[- ]?[0-9]+[- ]?[0-9]+[- ]?[0-9X]$",
-             message = "Invalid ISBN format")
+            "[- 0-9X]{13}$|97[89][0-9]{10}$|(?=(?:[0-9]+[- ]){4})[- 0-9]{17}$)" +
+            "(?:97[89][- ]?)?[0-9]{1,5}[- ]?[0-9]+[- ]?[0-9]+[- ]?[0-9X]$", message = "Invalid ISBN format")
     @Column(name = "isbn", length = 20)
     private String isbn;
 
@@ -244,9 +223,8 @@ public class Product {
     private String gtin;
 
     // ==================== SEO & URLS ====================
-    
-    @Pattern(regexp = "^[a-z0-9]+(?:-[a-z0-9]+)*$", 
-             message = "Friendly URL must be lowercase alphanumeric with hyphens")
+
+    @Pattern(regexp = "^[a-z0-9]+(?:-[a-z0-9]+)*$", message = "Friendly URL must be lowercase alphanumeric with hyphens")
     @Size(max = 255)
     @Column(name = "friendly_url", unique = true, length = 255)
     private String friendlyUrl;
@@ -277,7 +255,7 @@ public class Product {
     private String canonicalUrl;
 
     // ==================== PRICING ====================
-    
+
     /**
      * Regular selling price.
      */
@@ -348,7 +326,7 @@ public class Product {
     private boolean taxExempt = false;
 
     // ==================== INVENTORY ====================
-    
+
     /**
      * Current stock quantity (for simple inventory).
      * For multi-warehouse, use ProductInventory entity.
@@ -410,7 +388,7 @@ public class Product {
     private StockStatus stockStatus = StockStatus.IN_STOCK;
 
     // ==================== ORDER LIMITS ====================
-    
+
     /**
      * Minimum quantity per order.
      */
@@ -435,7 +413,7 @@ public class Product {
     private Integer orderQuantityStep = 1;
 
     // ==================== SHIPPING & DIMENSIONS ====================
-    
+
     /**
      * Product weight in the specified weight unit.
      */
@@ -509,10 +487,7 @@ public class Product {
      * Shipping class for rate calculation.
      */
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(
-        name = "shipping_class_id",
-        foreignKey = @ForeignKey(name = "fk_product_shipping_class")
-    )
+    @JoinColumn(name = "shipping_class_id", foreignKey = @ForeignKey(name = "fk_product_shipping_class"))
     private ShippingClass shippingClass;
 
     /**
@@ -530,15 +505,12 @@ public class Product {
     private String hsCode;
 
     // ==================== MEDIA ====================
-    
+
     /**
      * Primary/main product image.
      */
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(
-        name = "primary_image_id",
-        foreignKey = @ForeignKey(name = "fk_product_primary_image")
-    )
+    @JoinColumn(name = "primary_image_id", foreignKey = @ForeignKey(name = "fk_product_primary_image"))
     private ProductImage primaryImage;
 
     /**
@@ -557,7 +529,7 @@ public class Product {
     private String videoUrl;
 
     // ==================== FLAGS & VISIBILITY ====================
-    
+
     /**
      * Whether this is a master product (has variants).
      */
@@ -606,7 +578,7 @@ public class Product {
     private LocalDateTime visibleTo;
 
     // ==================== RATINGS & REVIEWS ====================
-    
+
     /**
      * Cached average rating (0.0-5.0).
      * Updated by trigger or scheduled job from reviews.
@@ -666,7 +638,7 @@ public class Product {
     private Integer rating1Count = 0;
 
     // ==================== ANALYTICS & POPULARITY ====================
-    
+
     /**
      * Total number of views.
      */
@@ -706,7 +678,7 @@ public class Product {
     private Double popularityScore = 0.0;
 
     // ==================== WARRANTY & SUPPORT ====================
-    
+
     /**
      * Warranty duration in months.
      */
@@ -744,7 +716,7 @@ public class Product {
     private Integer returnDays = 30;
 
     // ==================== RESTRICTIONS ====================
-    
+
     /**
      * Minimum age required to purchase.
      */
@@ -773,7 +745,7 @@ public class Product {
     private String requiredLicense;
 
     // ==================== DIGITAL PRODUCTS ====================
-    
+
     /**
      * Whether this is a digital/downloadable product.
      */
@@ -802,7 +774,7 @@ public class Product {
     private Integer downloadExpiryDays;
 
     // ==================== SUBSCRIPTION PRODUCTS ====================
-    
+
     /**
      * Whether this is a subscription product.
      */
@@ -832,7 +804,7 @@ public class Product {
     private Integer trialDays;
 
     // ==================== CUSTOMIZATION ====================
-    
+
     /**
      * Whether gift wrapping is available.
      */
@@ -862,12 +834,9 @@ public class Product {
     private String personalizationOptions;
 
     // ==================== SUPPLIER INFORMATION ====================
-    
+
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(
-        name = "supplier_id",
-        foreignKey = @ForeignKey(name = "fk_product_supplier")
-    )
+    @JoinColumn(name = "supplier_id", foreignKey = @ForeignKey(name = "fk_product_supplier"))
     private Supplier supplier;
 
     /**
@@ -893,7 +862,7 @@ public class Product {
     private Integer supplierLeadDays;
 
     // ==================== CLASSIFICATION (LEGACY) ====================
-    
+
     @Deprecated
     @Size(max = 100)
     @Column(name = "category_type", length = 100)
@@ -905,43 +874,28 @@ public class Product {
     private String subCategory;
 
     // ==================== RELATIONSHIPS ====================
-    
+
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(
-        name = "category_id",
-        foreignKey = @ForeignKey(name = "fk_product_category")
-    )
+    @JoinColumn(name = "category_id", foreignKey = @ForeignKey(name = "fk_product_category"))
     private Category category;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(
-        name = "brand_id",
-        foreignKey = @ForeignKey(name = "fk_product_brand")
-    )
+    @JoinColumn(name = "brand_id", foreignKey = @ForeignKey(name = "fk_product_brand"))
     private Brand brand;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(
-        name = "shop_id",
-        foreignKey = @ForeignKey(name = "fk_product_shop")
-    )
-    private Shop shop;
+    @JoinColumn(name = "store_id", foreignKey = @ForeignKey(name = "fk_product_store"))
+    private Store store;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(
-        name = "tax_class_id",
-        foreignKey = @ForeignKey(name = "fk_product_tax_class")
-    )
+    @JoinColumn(name = "tax_class_id", foreignKey = @ForeignKey(name = "fk_product_tax_class"))
     private TaxClass taxClass;
 
     /**
      * Parent product (for variants).
      */
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(
-        name = "parent_product_id",
-        foreignKey = @ForeignKey(name = "fk_product_parent")
-    )
+    @JoinColumn(name = "parent_product_id", foreignKey = @ForeignKey(name = "fk_product_parent"))
     private Product parentProduct;
 
     /**
@@ -953,7 +907,7 @@ public class Product {
     private Set<Product> variants = new LinkedHashSet<>();
 
     // ==================== COLLECTIONS ====================
-    
+
     /**
      * Product images.
      */
@@ -967,18 +921,11 @@ public class Product {
      * General product attributes as key-value pairs.
      */
     @ElementCollection(fetch = FetchType.LAZY)
-    @CollectionTable(
-        name = "product_attribute_map",
-        joinColumns = @JoinColumn(
-            name = "product_id",
-            foreignKey = @ForeignKey(name = "fk_product_attr_map_product")
-        ),
-        indexes = {
+    @CollectionTable(name = "product_attribute_map", joinColumns = @JoinColumn(name = "product_id", foreignKey = @ForeignKey(name = "fk_product_attr_map_product")), indexes = {
             @Index(name = "idx_pattr_map_product_id", columnList = "product_id"),
             @Index(name = "idx_pattr_map_name", columnList = "attribute_name"),
             @Index(name = "idx_pattr_map_value", columnList = "attribute_value(255)")
-        }
-    )
+    })
     @MapKeyColumn(name = "attribute_name", length = 100)
     @Column(name = "attribute_value", length = 2000)
     @BatchSize(size = 50)
@@ -990,38 +937,20 @@ public class Product {
      * These attributes differentiate variants from each other.
      */
     @ElementCollection(fetch = FetchType.LAZY)
-    @CollectionTable(
-        name = "product_variant_attributes",
-        joinColumns = @JoinColumn(
-            name = "product_id",
-            foreignKey = @ForeignKey(name = "fk_product_vattr_product")
-        ),
-        indexes = {
+    @CollectionTable(name = "product_variant_attributes", joinColumns = @JoinColumn(name = "product_id", foreignKey = @ForeignKey(name = "fk_product_vattr_product")), indexes = {
             @Index(name = "idx_pvattr_product", columnList = "product_id"),
             @Index(name = "idx_pvattr_name_value", columnList = "attribute_name, attribute_value")
-        }
-    )
+    })
     @MapKeyColumn(name = "attribute_name", length = 50)
     @Column(name = "attribute_value", length = 100)
     @Builder.Default
     private Map<String, String> variantAttributes = new LinkedHashMap<>();
 
     @ManyToMany(fetch = FetchType.LAZY)
-    @JoinTable(
-        name = "product_tags",
-        joinColumns = @JoinColumn(
-            name = "product_id",
-            foreignKey = @ForeignKey(name = "fk_product_tag_product")
-        ),
-        inverseJoinColumns = @JoinColumn(
-            name = "tag_id",
-            foreignKey = @ForeignKey(name = "fk_product_tag_tag")
-        ),
-        indexes = {
+    @JoinTable(name = "product_tags", joinColumns = @JoinColumn(name = "product_id", foreignKey = @ForeignKey(name = "fk_product_tag_product")), inverseJoinColumns = @JoinColumn(name = "tag_id", foreignKey = @ForeignKey(name = "fk_product_tag_tag")), indexes = {
             @Index(name = "idx_product_tags_product", columnList = "product_id"),
             @Index(name = "idx_product_tags_tag", columnList = "tag_id")
-        }
-    )
+    })
     @BatchSize(size = 50)
     @Builder.Default
     private Set<Tag> tags = new LinkedHashSet<>();
@@ -1044,17 +973,7 @@ public class Product {
      * Related products (accessories, alternatives).
      */
     @ManyToMany(fetch = FetchType.LAZY)
-    @JoinTable(
-        name = "product_related",
-        joinColumns = @JoinColumn(
-            name = "product_id",
-            foreignKey = @ForeignKey(name = "fk_related_product")
-        ),
-        inverseJoinColumns = @JoinColumn(
-            name = "related_product_id",
-            foreignKey = @ForeignKey(name = "fk_related_related")
-        )
-    )
+    @JoinTable(name = "product_related", joinColumns = @JoinColumn(name = "product_id", foreignKey = @ForeignKey(name = "fk_related_product")), inverseJoinColumns = @JoinColumn(name = "related_product_id", foreignKey = @ForeignKey(name = "fk_related_related")))
     @BatchSize(size = 20)
     @Builder.Default
     private Set<Product> relatedProducts = new LinkedHashSet<>();
@@ -1063,11 +982,7 @@ public class Product {
      * Cross-sell products (frequently bought together).
      */
     @ManyToMany(fetch = FetchType.LAZY)
-    @JoinTable(
-        name = "product_cross_sells",
-        joinColumns = @JoinColumn(name = "product_id"),
-        inverseJoinColumns = @JoinColumn(name = "cross_sell_product_id")
-    )
+    @JoinTable(name = "product_cross_sells", joinColumns = @JoinColumn(name = "product_id"), inverseJoinColumns = @JoinColumn(name = "cross_sell_product_id"))
     @BatchSize(size = 20)
     @Builder.Default
     private Set<Product> crossSellProducts = new LinkedHashSet<>();
@@ -1076,11 +991,7 @@ public class Product {
      * Up-sell products (premium alternatives).
      */
     @ManyToMany(fetch = FetchType.LAZY)
-    @JoinTable(
-        name = "product_up_sells",
-        joinColumns = @JoinColumn(name = "product_id"),
-        inverseJoinColumns = @JoinColumn(name = "up_sell_product_id")
-    )
+    @JoinTable(name = "product_up_sells", joinColumns = @JoinColumn(name = "product_id"), inverseJoinColumns = @JoinColumn(name = "up_sell_product_id"))
     @BatchSize(size = 20)
     @Builder.Default
     private Set<Product> upSellProducts = new LinkedHashSet<>();
@@ -1095,7 +1006,7 @@ public class Product {
     private List<ProductPriceHistory> priceHistory = new ArrayList<>();
 
     // ==================== AUDIT FIELDS ====================
-    
+
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -1157,22 +1068,25 @@ public class Product {
         String prefix = "PRD";
         if (category != null) {
             if (category.getSlug() != null && !category.getSlug().isBlank()) {
-                prefix = category.getSlug().toUpperCase().replaceAll("[^A-Z0-9]", "").substring(0, Math.min(3, category.getSlug().length()));
+                prefix = category.getSlug().toUpperCase().replaceAll("[^A-Z0-9]", "").substring(0,
+                        Math.min(3, category.getSlug().length()));
             } else if (category.getName() != null && !category.getName().isBlank()) {
-                prefix = category.getName().toUpperCase().replaceAll("[^A-Z0-9]", "").substring(0, Math.min(3, category.getName().length()));
+                prefix = category.getName().toUpperCase().replaceAll("[^A-Z0-9]", "").substring(0,
+                        Math.min(3, category.getName().length()));
             }
         }
         return String.format("%s-%d-%s", prefix, System.currentTimeMillis() % 100000,
-            UUID.randomUUID().toString().substring(0, 4).toUpperCase());
+                UUID.randomUUID().toString().substring(0, 4).toUpperCase());
     }
 
     private String generateFriendlyUrl() {
-        if (name == null) return null;
+        if (name == null)
+            return null;
         return name.toLowerCase()
-            .replaceAll("[^a-z0-9\\s-]", "")
-            .replaceAll("\\s+", "-")
-            .replaceAll("-+", "-")
-            .replaceAll("^-|-$", "");
+                .replaceAll("[^a-z0-9\\s-]", "")
+                .replaceAll("\\s+", "-")
+                .replaceAll("-+", "-")
+                .replaceAll("^-|-$", "");
     }
 
     // ==================== BUSINESS METHODS ====================
@@ -1240,9 +1154,9 @@ public class Product {
             return BigDecimal.ZERO;
         }
         return price.subtract(discountPrice)
-            .divide(price, 4, RoundingMode.HALF_UP)
-            .multiply(BigDecimal.valueOf(100))
-            .setScale(2, RoundingMode.HALF_UP);
+                .divide(price, 4, RoundingMode.HALF_UP)
+                .multiply(BigDecimal.valueOf(100))
+                .setScale(2, RoundingMode.HALF_UP);
     }
 
     /**
@@ -1264,9 +1178,9 @@ public class Product {
         }
         BigDecimal effectivePrice = getEffectivePrice();
         return effectivePrice.subtract(costPrice)
-            .divide(effectivePrice, 4, RoundingMode.HALF_UP)
-            .multiply(BigDecimal.valueOf(100))
-            .setScale(2, RoundingMode.HALF_UP);
+                .divide(effectivePrice, 4, RoundingMode.HALF_UP)
+                .multiply(BigDecimal.valueOf(100))
+                .setScale(2, RoundingMode.HALF_UP);
     }
 
     /**
@@ -1331,7 +1245,7 @@ public class Product {
             return true;
         }
         return !Arrays.asList(restrictedCountries.split(","))
-            .contains(countryCode.toUpperCase());
+                .contains(countryCode.toUpperCase());
     }
 
     /**
@@ -1340,21 +1254,21 @@ public class Product {
     public void validateOrderQuantity(int quantity) {
         if (quantity < minOrderQuantity) {
             throw new IllegalArgumentException(
-                String.format("Minimum order quantity is %d", minOrderQuantity));
+                    String.format("Minimum order quantity is %d", minOrderQuantity));
         }
         if (maxOrderQuantity != null && quantity > maxOrderQuantity) {
             throw new IllegalArgumentException(
-                String.format("Maximum order quantity is %d", maxOrderQuantity));
+                    String.format("Maximum order quantity is %d", maxOrderQuantity));
         }
         if (orderQuantityStep != null && orderQuantityStep > 1) {
             if ((quantity - minOrderQuantity) % orderQuantityStep != 0) {
                 throw new IllegalArgumentException(
-                    String.format("Quantity must be ordered in steps of %d", orderQuantityStep));
+                        String.format("Quantity must be ordered in steps of %d", orderQuantityStep));
             }
         }
         if (trackInventory && !allowBackorder && quantity > getAvailableQuantity()) {
             throw new IllegalArgumentException(
-                String.format("Only %d items available", getAvailableQuantity()));
+                    String.format("Only %d items available", getAvailableQuantity()));
         }
     }
 
@@ -1390,8 +1304,8 @@ public class Product {
         if (quantity <= 0) {
             throw new IllegalArgumentException("Quantity must be positive");
         }
-        this.reservedQuantity = Math.max(0, 
-            (reservedQuantity != null ? reservedQuantity : 0) - quantity);
+        this.reservedQuantity = Math.max(0,
+                (reservedQuantity != null ? reservedQuantity : 0) - quantity);
         updateStockStatus();
     }
 
@@ -1404,10 +1318,10 @@ public class Product {
             throw new IllegalArgumentException("Quantity must be positive");
         }
         if (trackInventory) {
-            this.stockQuantity = Math.max(0, 
-                (stockQuantity != null ? stockQuantity : 0) - quantity);
-            this.reservedQuantity = Math.max(0, 
-                (reservedQuantity != null ? reservedQuantity : 0) - quantity);
+            this.stockQuantity = Math.max(0,
+                    (stockQuantity != null ? stockQuantity : 0) - quantity);
+            this.reservedQuantity = Math.max(0,
+                    (reservedQuantity != null ? reservedQuantity : 0) - quantity);
         }
         this.purchaseCount = (purchaseCount != null ? purchaseCount : 0L) + quantity;
         updateStockStatus();
@@ -1427,9 +1341,8 @@ public class Product {
         int available = getAvailableQuantity();
         if (available < quantity && !allowBackorder) {
             throw new InsufficientStockException(
-                String.format("Insufficient stock. Available: %d, Requested: %d", available, quantity),
-                this.id, available, quantity
-            );
+                    String.format("Insufficient stock. Available: %d, Requested: %d", available, quantity),
+                    this.id, available, quantity);
         }
         this.stockQuantity = Math.max(0, (stockQuantity != null ? stockQuantity : 0) - quantity);
         updateStockStatus();
@@ -1457,9 +1370,9 @@ public class Product {
             this.stockStatus = StockStatus.IN_STOCK;
             return;
         }
-        
+
         int available = getAvailableQuantity();
-        
+
         if (available <= 0) {
             this.stockStatus = allowBackorder ? StockStatus.ON_BACKORDER : StockStatus.OUT_OF_STOCK;
         } else if (reorderLevel != null && available <= reorderLevel) {
@@ -1518,10 +1431,10 @@ public class Product {
         this.rating4Count = counts[3];
         this.rating5Count = counts[4];
         this.reviewCount = total;
-        
-        this.averageRating = total > 0 
-            ? BigDecimal.valueOf(sum).divide(BigDecimal.valueOf(total), 2, RoundingMode.HALF_UP)
-            : BigDecimal.ZERO;
+
+        this.averageRating = total > 0
+                ? BigDecimal.valueOf(sum).divide(BigDecimal.valueOf(total), 2, RoundingMode.HALF_UP)
+                : BigDecimal.ZERO;
     }
 
     // ==================== RELATIONSHIP MANAGEMENT ====================
@@ -1653,7 +1566,7 @@ public class Product {
     }
 
     // ==================== SOFT DELETE OPERATIONS ====================
-    
+
     /**
      * Marks this product as deleted (soft delete).
      */
@@ -1707,7 +1620,7 @@ public class Product {
     }
 
     // ==================== ATTRIBUTE MANAGEMENT ====================
-    
+
     /**
      * Gets an attribute value by name.
      */
@@ -1792,12 +1705,12 @@ public class Product {
             return null;
         }
         // DIM factor: 5000 for metric (cm/kg), 139 for imperial (in/lb)
-        BigDecimal dimFactor = dimensionUnit == DimensionUnit.CM 
-            ? BigDecimal.valueOf(5000) 
-            : BigDecimal.valueOf(139);
-        
+        BigDecimal dimFactor = dimensionUnit == DimensionUnit.CM
+                ? BigDecimal.valueOf(5000)
+                : BigDecimal.valueOf(139);
+
         return length.multiply(width).multiply(height)
-            .divide(dimFactor, 2, RoundingMode.CEILING);
+                .divide(dimFactor, 2, RoundingMode.CEILING);
     }
 
     /**
@@ -1842,13 +1755,14 @@ public class Product {
      */
     public void recalculatePopularityScore() {
         double score = 0.0;
-        
+
         // Weight: purchases (40%), views (20%), rating (25%), wishlist (15%)
         score += (purchaseCount != null ? purchaseCount : 0) * 0.4;
         score += (viewCount != null ? viewCount : 0) * 0.02; // Views have lower individual weight
-        score += (averageRating != null ? averageRating.doubleValue() : 0) * 5 * (reviewCount != null ? reviewCount : 0) * 0.25;
+        score += (averageRating != null ? averageRating.doubleValue() : 0) * 5 * (reviewCount != null ? reviewCount : 0)
+                * 0.25;
         score += (wishlistCount != null ? wishlistCount : 0) * 0.15;
-        
+
         this.popularityScore = score;
     }
 
@@ -1859,25 +1773,25 @@ public class Product {
      */
     public Product createVariantCopy() {
         return Product.builder()
-            .name(this.name)
-            .shortDescription(this.shortDescription)
-            .description(this.description)
-            .price(this.price)
-            .costPrice(this.costPrice)
-            .category(this.category)
-            .brand(this.brand)
-            .shop(this.shop)
-            .taxClass(this.taxClass)
-            .productType(ProductType.VARIANT)
-            .status(ProductStatus.DRAFT)
-            .parentProduct(this)
-            .isMaster(false)
-            .weight(this.weight)
-            .weightUnit(this.weightUnit)
-            .requiresShipping(this.requiresShipping)
-            .trackInventory(this.trackInventory)
-            .attributes(new LinkedHashMap<>(this.attributes))
-            .build();
+                .name(this.name)
+                .shortDescription(this.shortDescription)
+                .description(this.description)
+                .price(this.price)
+                .costPrice(this.costPrice)
+                .category(this.category)
+                .brand(this.brand)
+                .store(this.store)
+                .taxClass(this.taxClass)
+                .productType(ProductType.VARIANT)
+                .status(ProductStatus.DRAFT)
+                .parentProduct(this)
+                .isMaster(false)
+                .weight(this.weight)
+                .weightUnit(this.weightUnit)
+                .requiresShipping(this.requiresShipping)
+                .trackInventory(this.trackInventory)
+                .attributes(new LinkedHashMap<>(this.attributes))
+                .build();
     }
 
     /**
@@ -1917,7 +1831,8 @@ public class Product {
     }
 
     /**
-     * @deprecated Use attributes field instead. Returns a copy of general attributes.
+     * @deprecated Use attributes field instead. Returns a copy of general
+     *             attributes.
      */
     @Deprecated
     public Map<String, String> getCategoryAttributes() {

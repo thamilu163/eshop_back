@@ -58,6 +58,10 @@ public class CategoryRequest {
     @SafeText
     private String reason;
 
+    @Schema(description = "ID of the parent category if this is a subcategory", example = "1")
+    @JsonProperty("parent_id")
+    private Long parentId;
+
     // Compatibility getters/setters
     public String getName() {
         return name != null ? name : categoryName;

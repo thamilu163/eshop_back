@@ -23,7 +23,7 @@ import java.time.LocalDateTime;
     @Index(name = "idx_coupon_status", columnList = "is_active"),
     @Index(name = "idx_coupon_valid_from", columnList = "valid_from"),
     @Index(name = "idx_coupon_valid_until", columnList = "valid_until"),
-    @Index(name = "idx_coupon_shop_id", columnList = "shop_id")
+    @Index(name = "idx_coupon_store_id", columnList = "store_id")
 })
 @Data
 @EqualsAndHashCode(callSuper = false)
@@ -79,8 +79,8 @@ public class Coupon extends BaseEntity {
     private AppliesTo appliesTo;
     
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "shop_id")
-    private Shop shop; // For shop-specific coupons
+    @JoinColumn(name = "store_id")
+    private Store store; // For store-specific coupons
     
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id")
@@ -99,7 +99,7 @@ public class Coupon extends BaseEntity {
     public enum AppliesTo {
         ALL_ORDERS,         // Apply to entire order
         SPECIFIC_CATEGORY,  // Apply to specific category
-        SPECIFIC_SHOP,      // Apply to specific shop
+        SPECIFIC_STORE,      // Apply to specific store
         SHIPPING_ONLY       // Apply to shipping cost only
     }
     

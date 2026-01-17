@@ -28,7 +28,7 @@ public class CouponUsageRequest {
     @Digits(integer = 10, fraction = 2, message = "Order total format is invalid")
     private BigDecimal orderTotal;
     
-    private Long shopId; // For shop-specific validation
+    private Long storeId; // For store-specific validation
     private Long categoryId; // For category-specific validation
     private Long orderId; // For tracking coupon usage
 }

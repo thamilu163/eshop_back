@@ -33,8 +33,8 @@ public class CouponResponse {
     private LocalDateTime validUntil;
     private Boolean isActive;
     private Coupon.AppliesTo appliesTo;
-    private Long shopId;
-    private String shopName;
+    private Long storeId;
+    private String storeName;
     private Long categoryId;
     private String categoryName;
     private Boolean firstTimeOnly;

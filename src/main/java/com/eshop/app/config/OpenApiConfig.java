@@ -30,51 +30,51 @@ public class OpenApiConfig {
 
     @Bean
     public OpenAPI customOpenAPI() {
-        log.info("OpenAPI documentation enabled");
+        log.info("OpenAPI documentation enabled with OAuth2 and Bearer JWT authentication");
 
-        final String securitySchemeName = "oauth2";
+        final String oauth2SchemeName = "oauth2";
+        final String bearerJwtSchemeName = "bearer-jwt";
         final String authorizationUrl = issuerUri + "/protocol/openid-connect/auth";
         final String tokenUrl = issuerUri + "/protocol/openid-connect/token";
 
         return new OpenAPI()
-            .info(apiInfo())
-            .servers(List.of(new Server().url("http://localhost:" + serverPort).description("Development Server")))
-            .addSecurityItem(new SecurityRequirement().addList(securitySchemeName))
-            .components(new Components()
-                .addSecuritySchemes(securitySchemeName,
-                    new SecurityScheme()
-                        .name(securitySchemeName)
-                        .type(SecurityScheme.Type.OAUTH2)
-                        .description("OAuth2 Authentication with Keycloak")
-                        .flows(new OAuthFlows()
-                            .authorizationCode(new OAuthFlow()
-                                .authorizationUrl(authorizationUrl)
-                                .tokenUrl(tokenUrl)
-                                .scopes(new Scopes()
-                                    .addString("openid", "OpenID Connect")
-                                    .addString("profile", "User profile")
-                                    .addString("email", "User email")
-                                )
-                            )
-                        )
-                )
-                .addSecuritySchemes("bearer-jwt",
-                    new SecurityScheme()
-                        .name("bearer-jwt")
-                        .type(SecurityScheme.Type.HTTP)
-                        .scheme("bearer")
-                        .bearerFormat("JWT")
-                        .description("Enter JWT token directly")
-                )
-            );
+                .info(apiInfo())
+                .servers(List.of(new Server().url("http://localhost:" + serverPort).description("Development Server")))
+                // Global security requirements - endpoints can use either OAuth2 or direct JWT
+                .addSecurityItem(new SecurityRequirement().addList(oauth2SchemeName))
+                .addSecurityItem(new SecurityRequirement().addList(bearerJwtSchemeName))
+                .components(new Components()
+                        // OAuth2 Security Scheme (Keycloak Authorization Code Flow)
+                        .addSecuritySchemes(oauth2SchemeName,
+                                new SecurityScheme()
+                                        .name(oauth2SchemeName)
+                                        .type(SecurityScheme.Type.OAUTH2)
+                                        .description(
+                                                "OAuth2 Authentication with Keycloak - Use 'Authorize' button to login")
+                                        .flows(new OAuthFlows()
+                                                .authorizationCode(new OAuthFlow()
+                                                        .authorizationUrl(authorizationUrl)
+                                                        .tokenUrl(tokenUrl)
+                                                        .scopes(new Scopes()
+                                                                .addString("openid", "OpenID Connect")
+                                                                .addString("profile", "User profile")
+                                                                .addString("email", "User email")))))
+                        // Bearer JWT Security Scheme (Direct Token)
+                        .addSecuritySchemes(bearerJwtSchemeName,
+                                new SecurityScheme()
+                                        .name(bearerJwtSchemeName)
+                                        .type(SecurityScheme.Type.HTTP)
+                                        .scheme("bearer")
+                                        .bearerFormat("JWT")
+                                        .description("Enter JWT token directly (format: 'Bearer <token>')")));
     }
 
     private Info apiInfo() {
         return new Info()
-            .title("E-Shop REST API")
-            .description("Enterprise E-Commerce Platform API Documentation")
-            .version("1.0.0")
-            .contact(new Contact().name("API Support").email("support@eshop.com").url("https://eshop.com/support"))
-            .license(new License().name("Apache 2.0").url("https://www.apache.org/licenses/LICENSE-2.0"));
+                .title("E-Shop REST API")
+                .description("Enterprise E-Commerce Platform API Documentation")
+                .version("1.0.0")
+                .contact(new Contact().name("API Support").email("support@eshop.com").url("https://eshop.com/support"))
+                .license(new License().name("Apache 2.0").url("https://www.apache.org/licenses/LICENSE-2.0"));
     }
 }

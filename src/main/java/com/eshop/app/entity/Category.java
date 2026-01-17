@@ -38,8 +38,22 @@ public class Category extends BaseEntity {
     @Embedded
     private SeoMetadata seoMetadata;
     
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "parent_id")
+    @ToString.Exclude
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    private Category parent;
+
+    @OneToMany(mappedBy = "parent", cascade = CascadeType.ALL)
+    @Builder.Default
+    @ToString.Exclude
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    private Set<Category> subCategories = new HashSet<>();
+
     @OneToMany(mappedBy = "category", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
+    @ToString.Exclude
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private Set<Product> products = new HashSet<>();
 
     // Convenience constructor used in some service code

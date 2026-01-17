@@ -27,8 +27,8 @@ public class ProductResponse {
     private String categoryName;
     private Long brandId;
     private String brandName;
-    private Long shopId;
-    private String shopName;
+    private Long storeId;
+    private String storeName;
     private List<ProductImageResponse> images;
     private List<ProductReviewResponse> reviews;
     private List<String> tags;

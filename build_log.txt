@@ -1,0 +1,30 @@
+> Task :compileJava
+G:\Project\eshop_back\src\main\java\com\eshop\app\controller\CouponController.java:113: error: cannot find symbol
+        PageResponse<CouponResponse> coupons = couponService.getCouponsByShop(shopId, pageable);
+                                                            ^
+  symbol:   method getCouponsByShop(Long,Pageable)
+  location: variable couponService of type CouponService
+1 error
+
+> Task :compileJava FAILED
+
+[Incubating] Problems report is available at: file:///G:/Project/eshop_back/build/reports/problems/problems-report.html
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':compileJava'.
+> Compilation failed; see the compiler output below.
+  G:\Project\eshop_back\src\main\java\com\eshop\app\controller\CouponController.java:113: error: cannot find symbol
+          PageResponse<CouponResponse> coupons = couponService.getCouponsByShop(shopId, pageable);
+                                                              ^
+    symbol:   method getCouponsByShop(Long,Pageable)
+    location: variable couponService of type CouponService
+  1 error
+
+* Try:
+> Check your code and dependencies to fix the compilation error(s)
+> Run with --scan to generate a Build Scan (powered by Develocity).
+
+BUILD FAILED in 53s
+1 actionable task: 1 executed

@@ -57,10 +57,10 @@ public interface WishlistService {
     List<WishlistResponse> getUserWishlistWithDetails(Long userId);
     
     /**
-     * Get wishlist items by shop
-     * Shows only items from specific shop
+     * Get wishlist items by store
+     * Shows only items from specific store
      */
-    List<WishlistResponse> getUserWishlistByShop(Long userId, Long shopId);
+    List<WishlistResponse> getUserWishlistByStore(Long userId, Long storeId);
     
     /**
      * Get wishlist items by category
@@ -93,10 +93,10 @@ public interface WishlistService {
     List<Object> getWishlistStatisticsByCategory();
     
     /**
-     * Get users who wishlisted products from a shop
+     * Get users who wishlisted products from a store
      * Useful for marketing to interested customers
      */
-    List<Object> getUsersInterestedInShop(Long shopId);
+    List<Object> getUsersInterestedInStore(Long storeId);
     
     /**
      * Update wishlist item notes

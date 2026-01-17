@@ -14,19 +14,19 @@ import java.util.Map;
 @Data
 @Builder
 public class SeederContext {
-    
+
     @Builder.Default
     private Map<String, User> users = new HashMap<>();
-    
+
     @Builder.Default
     private Map<String, Category> categories = new HashMap<>();
-    
+
     @Builder.Default
     private Map<String, Brand> brands = new HashMap<>();
-    
+
     @Builder.Default
     private Map<String, Tag> tags = new HashMap<>();
-    
+
     @Builder.Default
-    private Map<String, Shop> shops = new HashMap<>();
+    private Map<String, Store> stores = new HashMap<>();
 }

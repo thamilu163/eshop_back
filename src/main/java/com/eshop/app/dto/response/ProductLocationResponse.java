@@ -28,17 +28,17 @@ public class ProductLocationResponse {
     @Schema(description = "Currency code")
     private String currency;
 
-    @Schema(description = "Shop id where product is offered")
-    private Long shopId;
-
-    @Schema(description = "Shop name")
-    private String shopName;
-
-    @Schema(description = "Latitude of shop")
-    private Double shopLatitude;
-
-    @Schema(description = "Longitude of shop")
-    private Double shopLongitude;
+    @Schema(description = "Store id where product is offered")
+    private Long storeId;
+ 
+    @Schema(description = "Store name")
+    private String storeName;
+ 
+    @Schema(description = "Latitude of store")
+    private Double storeLatitude;
+ 
+    @Schema(description = "Longitude of store")
+    private Double storeLongitude;
 
     @Schema(description = "Distance in kilometers from search origin")
     private Double distanceKm;
@@ -46,8 +46,8 @@ public class ProductLocationResponse {
     @Schema(description = "Availability flag")
     private Boolean inStock;
 
-    @Schema(description = "Shop information")
-    private ShopLocationInfo shop;
+    @Schema(description = "Store information")
+    private StoreLocationInfo store;
 
     @Schema(description = "Distance from user in miles", example = "1.55")
     private Double distanceMiles;
@@ -56,38 +56,38 @@ public class ProductLocationResponse {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
-    @Schema(description = "Shop location information")
-    public static class ShopLocationInfo {
-        @Schema(description = "Shop ID", example = "1")
+    @Schema(description = "Store location information")
+    public static class StoreLocationInfo {
+        @Schema(description = "Store ID", example = "1")
         private Long id;
-
-        @Schema(description = "Shop name", example = "Tech Store SF")
-        private String shopName;
-
-        @Schema(description = "Shop address")
+ 
+        @Schema(description = "Store name", example = "Tech Store SF")
+        private String storeName;
+ 
+        @Schema(description = "Store address")
         private String address;
-
-        @Schema(description = "Shop phone", example = "+1-555-0123")
+ 
+        @Schema(description = "Store phone", example = "+1-555-0123")
         private String phone;
-
-        @Schema(description = "Shop latitude", example = "37.7749")
+ 
+        @Schema(description = "Store latitude", example = "37.7749")
         private Double latitude;
-
-        @Schema(description = "Shop longitude", example = "-122.4194")
+ 
+        @Schema(description = "Store longitude", example = "-122.4194")
         private Double longitude;
-
+ 
         @Schema(description = "City", example = "San Francisco")
         private String city;
-
+ 
         @Schema(description = "State", example = "California")
         private String state;
-
+ 
         @Schema(description = "Country", example = "USA")
         private String country;
-
+ 
         @Schema(description = "Postal code", example = "94102")
         private String postalCode;
-
+ 
         @Schema(description = "Google Place ID")
         private String placeId;
     }

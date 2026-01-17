@@ -47,6 +47,10 @@ public class CategoryServiceImpl implements CategoryService {
             throw new ResourceAlreadyExistsException("Category with name '" + request.getName() + "' already exists");
         }
         Category category = buildCategoryFromRequest(request);
+        if (request.getParentId() != null) {
+            Category parent = findCategoryByIdOrThrow(request.getParentId());
+            category.setParent(parent);
+        }
         category = categoryRepository.save(category);
         log.info("Category created successfully with id: {}", category.getId());
         return categoryMapper.toCategoryResponse(category);
@@ -239,12 +243,24 @@ public class CategoryServiceImpl implements CategoryService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<CategoryTreeResponse> getCategoryTree() {
-        // Best-effort: since Category has no parent relationship, return flat list as single-level tree
-        List<Category> all = categoryRepository.findAll();
-        return all.stream()
-            .map(c -> new CategoryTreeResponse(c.getId(), c.getName()))
-            .toList();
+        List<Category> allCategories = categoryRepository.findAll();
+        // Filter roots (parent is null)
+        return allCategories.stream()
+                .filter(c -> c.getParent() == null)
+                .map(this::toCategoryTreeResponse)
+                .toList();
+    }
+
+    private CategoryTreeResponse toCategoryTreeResponse(Category category) {
+        CategoryTreeResponse response = new CategoryTreeResponse(category.getId(), category.getName());
+        if (category.getSubCategories() != null && !category.getSubCategories().isEmpty()) {
+            response.setChildren(category.getSubCategories().stream()
+                    .map(this::toCategoryTreeResponse)
+                    .toList());
+        }
+        return response;
     }
 
     @Override

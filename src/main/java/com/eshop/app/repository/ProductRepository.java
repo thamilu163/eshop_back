@@ -60,13 +60,13 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
             p.id, p.name, p.description, p.sku, p.friendlyUrl,
             p.price, p.discountPrice, p.stockQuantity, p.imageUrl,
             p.status, p.featured, p.isMaster,
-            c.id, c.name, b.id, b.name, s.id, s.shopName,
+            c.id, c.name, b.id, b.name, s.id, s.storeName,
             p.createdAt, p.updatedAt, p.version
         )
         FROM Product p
         LEFT JOIN p.category c
         LEFT JOIN p.brand b
-        LEFT JOIN p.shop s
+        LEFT JOIN p.store s
         WHERE p.id = :id AND p.deleted = false
     """)
     Optional<ProductDetailProjection> findDetailById(@Param("id") Long id);
@@ -93,7 +93,7 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
      * Check if product exists for given ID and seller ID (ownership validation).
      * Used by ProductSecurityService for RBAC.
      */
-    boolean existsByIdAndShopSellerId(Long productId, Long sellerId);
+    boolean existsByIdAndStoreSellerId(Long productId, Long sellerId);
     
     /**
      * Find product with pessimistic write lock (for stock updates).
@@ -125,7 +125,7 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
     
     Page<Product> findByBrandId(Long brandId, Pageable pageable);
     
-    Page<Product> findByShopId(Long shopId, Pageable pageable);
+    Page<Product> findByStoreId(Long storeId, Pageable pageable);
     
     Page<Product> findByFeatured(Boolean featured, Pageable pageable);
     
@@ -153,7 +153,7 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
                 cos(radians(s.longitude) - radians(:longitude)) + 
                 sin(radians(:latitude)) * sin(radians(s.latitude)))) AS distance
         FROM products p
-        INNER JOIN shops s ON p.shop_id = s.id
+        INNER JOIN stores s ON p.store_id = s.id
         WHERE s.active = true
           AND p.status = 'ACTIVE'
           AND s.latitude IS NOT NULL 
@@ -166,7 +166,7 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
         countQuery = """
         SELECT COUNT(*)
         FROM products p
-        INNER JOIN shops s ON p.shop_id = s.id
+        INNER JOIN stores s ON p.store_id = s.id
         WHERE s.active = true
           AND p.status = 'ACTIVE'
           AND s.latitude IS NOT NULL 
@@ -181,20 +181,20 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
                                          @Param("radiusKm") Double radiusKm,
                                          Pageable pageable);
     
-    @Query("SELECT p FROM Product p WHERE p.shop.city = :city AND p.status = com.eshop.app.entity.enums.ProductStatus.ACTIVE")
-    Page<Product> findByShopCity(@Param("city") String city, Pageable pageable);
+    @Query("SELECT p FROM Product p WHERE p.store.city = :city AND p.status = com.eshop.app.entity.enums.ProductStatus.ACTIVE")
+    Page<Product> findByStoreCity(@Param("city") String city, Pageable pageable);
     
-    @Query("SELECT p FROM Product p WHERE p.shop.state = :state AND p.status = com.eshop.app.entity.enums.ProductStatus.ACTIVE")
-    Page<Product> findByShopState(@Param("state") String state, Pageable pageable);
+    @Query("SELECT p FROM Product p WHERE p.store.state = :state AND p.status = com.eshop.app.entity.enums.ProductStatus.ACTIVE")
+    Page<Product> findByStoreState(@Param("state") String state, Pageable pageable);
     
-    @Query("SELECT p FROM Product p WHERE p.shop.country = :country AND p.status = com.eshop.app.entity.enums.ProductStatus.ACTIVE")
-    Page<Product> findByShopCountry(@Param("country") String country, Pageable pageable);
+    @Query("SELECT p FROM Product p WHERE p.store.country = :country AND p.status = com.eshop.app.entity.enums.ProductStatus.ACTIVE")
+    Page<Product> findByStoreCountry(@Param("country") String country, Pageable pageable);
     
     // Dashboard Analytics Methods
-       long countByShopSellerId(Long sellerId);
-       long countByShopSellerIdAndStatus(Long sellerId, com.eshop.app.entity.enums.ProductStatus status);
-       long countByShopSellerIdAndStockQuantity(Long sellerId, Integer stockQuantity);
-       long countByShopSellerIdAndStockQuantityLessThan(Long sellerId, Integer stockQuantity);
+       long countByStoreSellerId(Long sellerId);
+       long countByStoreSellerIdAndStatus(Long sellerId, com.eshop.app.entity.enums.ProductStatus status);
+       long countByStoreSellerIdAndStockQuantity(Long sellerId, Integer stockQuantity);
+       long countByStoreSellerIdAndStockQuantityLessThan(Long sellerId, Integer stockQuantity);
        long countByStatus(com.eshop.app.entity.enums.ProductStatus status);
        long countByFeatured(Boolean featured);
        long countByStockQuantity(int stockQuantity);
@@ -217,36 +217,36 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
 
        long countByCreatedAtAfter(LocalDateTime dt);
        long countByUpdatedAtAfter(LocalDateTime dt);
-       long countByShopSellerIdAndFeaturedTrue(Long sellerId);
+       long countByStoreSellerIdAndFeaturedTrue(Long sellerId);
 
-       @Query("SELECT COALESCE(SUM(p.stockQuantity),0) FROM Product p WHERE p.shop.seller.id = :sellerId")
+       @Query("SELECT COALESCE(SUM(p.stockQuantity),0) FROM Product p WHERE p.store.seller.id = :sellerId")
        Long sumStockQuantityBySellerId(@Param("sellerId") Long sellerId);
 
-       @Query("SELECT COALESCE(SUM(p.price * p.stockQuantity),0) FROM Product p WHERE p.shop.seller.id = :sellerId")
+       @Query("SELECT COALESCE(SUM(p.price * p.stockQuantity),0) FROM Product p WHERE p.store.seller.id = :sellerId")
        BigDecimal sumInventoryValueBySellerId(@Param("sellerId") Long sellerId);
 
-       @Query("SELECT COALESCE(AVG(p.price),0) FROM Product p WHERE p.shop.seller.id = :sellerId")
+       @Query("SELECT COALESCE(AVG(p.price),0) FROM Product p WHERE p.store.seller.id = :sellerId")
        BigDecimal avgPriceBySellerId(@Param("sellerId") Long sellerId);
 
-       @Query("SELECT COALESCE(MAX(p.price),0) FROM Product p WHERE p.shop.seller.id = :sellerId")
+       @Query("SELECT COALESCE(MAX(p.price),0) FROM Product p WHERE p.store.seller.id = :sellerId")
        BigDecimal maxPriceBySellerId(@Param("sellerId") Long sellerId);
 
-       @Query("SELECT COALESCE(MIN(p.price),0) FROM Product p WHERE p.shop.seller.id = :sellerId")
+       @Query("SELECT COALESCE(MIN(p.price),0) FROM Product p WHERE p.store.seller.id = :sellerId")
        BigDecimal minPriceBySellerId(@Param("sellerId") Long sellerId);
 
-       long countByShopSellerIdAndCreatedAtAfter(Long sellerId, LocalDateTime dt);
-       long countByShopSellerIdAndUpdatedAtAfter(Long sellerId, LocalDateTime dt);
-    
+    long countByStoreSellerIdAndCreatedAtAfter(Long sellerId, LocalDateTime dt);
+    long countByStoreSellerIdAndUpdatedAtAfter(Long sellerId, LocalDateTime dt);
+ 
     @Query("SELECT c.name, COUNT(oi.id) FROM OrderItem oi JOIN oi.product p JOIN p.category c WHERE oi.order.customer.id = :customerId GROUP BY c.name ORDER BY COUNT(oi.id) DESC")
     java.util.List<Object[]> findFavoriteCategoryByCustomerId(@Param("customerId") Long customerId);
-    
-    @Query("SELECT p FROM Product p LEFT JOIN FETCH p.category LEFT JOIN FETCH p.brand LEFT JOIN FETCH p.shop s LEFT JOIN FETCH s.seller ORDER BY p.createdAt DESC")
+ 
+    @Query("SELECT p FROM Product p LEFT JOIN FETCH p.category LEFT JOIN FETCH p.brand LEFT JOIN FETCH p.store s LEFT JOIN FETCH s.seller ORDER BY p.createdAt DESC")
     java.util.List<Product> findTopSellingProducts(Pageable pageable);
-    
-    @Query("SELECT p FROM Product p LEFT JOIN FETCH p.category LEFT JOIN FETCH p.brand LEFT JOIN FETCH p.shop s LEFT JOIN FETCH s.seller WHERE s.seller.id = :sellerId ORDER BY p.createdAt DESC")
+ 
+    @Query("SELECT p FROM Product p LEFT JOIN FETCH p.category LEFT JOIN FETCH p.brand LEFT JOIN FETCH p.store s LEFT JOIN FETCH s.seller WHERE s.seller.id = :sellerId ORDER BY p.createdAt DESC")
     java.util.List<Product> findTopSellingProductsBySellerId(@Param("sellerId") Long sellerId, Pageable pageable);
-    
-    java.util.List<Product> findByShopSellerId(Long sellerId);
+ 
+    java.util.List<Product> findByStoreSellerId(Long sellerId);
 
        // Brand related stats used by BrandServiceImpl
        long countByBrandId(Long brandId);

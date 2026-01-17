@@ -72,7 +72,7 @@ public interface AnalyticsOrderRepository extends JpaRepository<Order, Long> {
             COUNT(DISTINCT o.customer.id) as totalCustomers
         )
         FROM Order o
-        WHERE o.shop.seller.id = :sellerId
+            WHERE o.store.seller.id = :sellerId
         """)
     Map<String, Object> getSellerOrderStatistics(@Param("sellerId") Long sellerId);
     
@@ -86,7 +86,7 @@ public interface AnalyticsOrderRepository extends JpaRepository<Order, Long> {
     @Query("""
         SELECT COALESCE(SUM(o.totalAmount), 0)
         FROM Order o
-        WHERE o.shop.seller.id = :sellerId
+            WHERE o.store.seller.id = :sellerId
             AND o.orderStatus = 'COMPLETED'
             AND o.createdAt >= :startOfMonth
         """)
@@ -155,7 +155,7 @@ public interface AnalyticsOrderRepository extends JpaRepository<Order, Long> {
     @Query("""
         SELECT o FROM Order o
         LEFT JOIN FETCH o.customer
-        LEFT JOIN FETCH o.shop
+            LEFT JOIN FETCH o.store
         WHERE o.createdAt BETWEEN :startDate AND :endDate
             AND o.orderStatus = 'COMPLETED'
         ORDER BY o.createdAt
@@ -176,9 +176,9 @@ public interface AnalyticsOrderRepository extends JpaRepository<Order, Long> {
     @Query("""
         SELECT DISTINCT o FROM Order o
         LEFT JOIN FETCH o.customer
-        LEFT JOIN FETCH o.shop
+            LEFT JOIN FETCH o.store
         LEFT JOIN FETCH o.currency
-        WHERE o.shop.seller.id = :sellerId
+            WHERE o.store.seller.id = :sellerId
         ORDER BY o.createdAt DESC
         """)
     Page<Order> findBySellerIdWithAssociations(
@@ -204,7 +204,7 @@ public interface AnalyticsOrderRepository extends JpaRepository<Order, Long> {
         )
         FROM Order o
         JOIN o.customer c
-        WHERE o.shop.seller.id = :sellerId
+            WHERE o.store.seller.id = :sellerId
             AND o.orderStatus = 'COMPLETED'
         GROUP BY c.id, c.firstName, c.lastName, c.email
         ORDER BY COUNT(o.id) DESC

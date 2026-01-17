@@ -13,21 +13,21 @@ import org.springframework.stereotype.Service;
 @Service("productSecurityService")
 @RequiredArgsConstructor
 public class ProductSecurityService {
-    
+
     private final ProductRepository productRepository;
-    
+
     /**
      * Check if a seller owns a specific product.
      * Used in SpEL expressions for authorization.
      * 
      * @param productId the product ID
-     * @param sellerId the seller ID
+     * @param sellerId  the seller ID
      * @return true if seller owns the product
      */
     public boolean isProductOwner(Long productId, Long sellerId) {
         if (productId == null || sellerId == null) {
             return false;
         }
-        return productRepository.existsByIdAndShopSellerId(productId, sellerId);
+        return productRepository.existsByIdAndStoreSellerId(productId, sellerId);
     }
 }

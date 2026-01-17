@@ -6,11 +6,11 @@ import com.eshop.app.dto.response.CouponResponse;
 import com.eshop.app.dto.response.PageResponse;
 import com.eshop.app.entity.Category;
 import com.eshop.app.entity.Coupon;
-import com.eshop.app.entity.Shop;
+import com.eshop.app.entity.Store;
 import com.eshop.app.exception.ResourceNotFoundException;
 import com.eshop.app.repository.CategoryRepository;
 import com.eshop.app.repository.CouponRepository;
-import com.eshop.app.repository.ShopRepository;
+import com.eshop.app.repository.StoreRepository;
 import com.eshop.app.service.CouponService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -28,14 +28,14 @@ import java.util.stream.Collectors;
 public class CouponServiceImpl implements CouponService {
 
     private final CouponRepository couponRepository;
-    private final ShopRepository shopRepository;
+    private final StoreRepository storeRepository;
     private final CategoryRepository categoryRepository;
 
     public CouponServiceImpl(CouponRepository couponRepository,
-                             ShopRepository shopRepository,
-                             CategoryRepository categoryRepository) {
+            StoreRepository storeRepository,
+            CategoryRepository categoryRepository) {
         this.couponRepository = couponRepository;
-        this.shopRepository = shopRepository;
+        this.storeRepository = storeRepository;
         this.categoryRepository = categoryRepository;
     }
 
@@ -82,8 +82,8 @@ public class CouponServiceImpl implements CouponService {
     }
 
     @Override
-    public PageResponse<CouponResponse> getCouponsByShop(Long shopId, Pageable pageable) {
-        Page<Coupon> page = couponRepository.findByShopId(shopId, pageable);
+    public PageResponse<CouponResponse> getCouponsByStore(Long storeId, Pageable pageable) {
+        Page<Coupon> page = couponRepository.findByStoreId(storeId, pageable);
         return toPageResponse(page);
     }
 
@@ -94,7 +94,8 @@ public class CouponServiceImpl implements CouponService {
     }
 
     @Override
-    public CouponResponse.ValidationResult validateCoupon(String code, Long userId, BigDecimal orderTotal, Long shopId, Long categoryId) {
+    public CouponResponse.ValidationResult validateCoupon(String code, Long userId, BigDecimal orderTotal, Long storeId,
+            Long categoryId) {
         LocalDateTime now = LocalDateTime.now();
         Coupon coupon = couponRepository.findActiveByCode(code, now)
                 .orElseThrow(() -> new ResourceNotFoundException("Active coupon not found with code: " + code));
@@ -126,9 +127,9 @@ public class CouponServiceImpl implements CouponService {
                 request.getCouponCode(),
                 request.getUserId(),
                 request.getOrderTotal(),
-                request.getShopId(),
-                request.getCategoryId()
-        );
+
+                request.getStoreId(),
+                request.getCategoryId());
 
         if (!Boolean.TRUE.equals(validation.getIsValid())) {
             return CouponResponse.ApplicationResult.builder()
@@ -142,7 +143,8 @@ public class CouponServiceImpl implements CouponService {
         }
 
         Coupon coupon = couponRepository.findByCode(request.getCouponCode())
-                .orElseThrow(() -> new ResourceNotFoundException("Coupon not found with code: " + request.getCouponCode()));
+                .orElseThrow(
+                        () -> new ResourceNotFoundException("Coupon not found with code: " + request.getCouponCode()));
 
         coupon.use();
         couponRepository.save(coupon);
@@ -160,7 +162,7 @@ public class CouponServiceImpl implements CouponService {
     }
 
     @Override
-    public List<CouponResponse> getApplicableCoupons(Long userId, BigDecimal orderTotal, Long shopId, Long categoryId) {
+    public List<CouponResponse> getApplicableCoupons(Long userId, BigDecimal orderTotal, Long storeId, Long categoryId) {
         LocalDateTime now = LocalDateTime.now();
         return couponRepository.findGlobalActiveCoupons(now).stream()
                 .map(this::mapToResponse)
@@ -216,17 +218,17 @@ public class CouponServiceImpl implements CouponService {
     public PageResponse<Object> getUserCouponUsageHistory(Long userId, Pageable pageable) {
         // Placeholder implementation: no history tracking yet
         PageResponse.PageMetadata metadata = PageResponse.PageMetadata.builder()
-            .page(pageable.getPageNumber())
-            .size(pageable.getPageSize())
-            .totalElements(0L)
-            .totalPages(0)
-            .hasNext(false)
-            .hasPrevious(false)
-            .build();
+                .page(pageable.getPageNumber())
+                .size(pageable.getPageSize())
+                .totalElements(0L)
+                .totalPages(0)
+                .hasNext(false)
+                .hasPrevious(false)
+                .build();
         return PageResponse.<Object>builder()
-            .data(List.of())
-            .pagination(metadata)
-            .build();
+                .data(List.of())
+                .pagination(metadata)
+                .build();
     }
 
     @Override
@@ -251,17 +253,19 @@ public class CouponServiceImpl implements CouponService {
         coupon.setAppliesTo(request.getAppliesTo());
         coupon.setFirstTimeOnly(request.getFirstTimeOnly());
 
-        if (request.getShopId() != null) {
-            Shop shop = shopRepository.findById(request.getShopId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Shop not found with id: " + request.getShopId()));
-            coupon.setShop(shop);
+        if (request.getStoreId() != null) {
+            Store store = storeRepository.findById(request.getStoreId())
+                    .orElseThrow(
+                            () -> new ResourceNotFoundException("Store not found with id: " + request.getStoreId()));
+            coupon.setStore(store);
         } else {
-            coupon.setShop(null);
+            coupon.setStore(null);
         }
 
         if (request.getCategoryId() != null) {
             Category category = categoryRepository.findById(request.getCategoryId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + request.getCategoryId()));
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Category not found with id: " + request.getCategoryId()));
             coupon.setCategory(category);
         } else {
             coupon.setCategory(null);
@@ -278,8 +282,8 @@ public class CouponServiceImpl implements CouponService {
     }
 
     private CouponResponse mapToResponse(Coupon coupon) {
-        Long shopId = coupon.getShop() != null ? coupon.getShop().getId() : null;
-        String shopName = coupon.getShop() != null ? coupon.getShop().getShopName() : null;
+        Long storeId = coupon.getStore() != null ? coupon.getStore().getId() : null;
+        String storeName = coupon.getStore() != null ? coupon.getStore().getStoreName() : null;
         Long categoryId = coupon.getCategory() != null ? coupon.getCategory().getId() : null;
         String categoryName = coupon.getCategory() != null ? coupon.getCategory().getName() : null;
 
@@ -314,8 +318,8 @@ public class CouponServiceImpl implements CouponService {
                 .validUntil(coupon.getValidUntil())
                 .isActive(coupon.getIsActive())
                 .appliesTo(coupon.getAppliesTo())
-                .shopId(shopId)
-                .shopName(shopName)
+                .storeId(storeId)
+                .storeName(storeName)
                 .categoryId(categoryId)
                 .categoryName(categoryName)
                 .firstTimeOnly(coupon.getFirstTimeOnly())
@@ -333,16 +337,16 @@ public class CouponServiceImpl implements CouponService {
                 .collect(Collectors.toList());
 
         PageResponse.PageMetadata metadata = PageResponse.PageMetadata.builder()
-            .page(page.getNumber())
-            .size(page.getSize())
-            .totalElements(page.getTotalElements())
-            .totalPages(page.getTotalPages())
-            .hasNext(page.hasNext())
-            .hasPrevious(page.hasPrevious())
-            .build();
+                .page(page.getNumber())
+                .size(page.getSize())
+                .totalElements(page.getTotalElements())
+                .totalPages(page.getTotalPages())
+                .hasNext(page.hasNext())
+                .hasPrevious(page.hasPrevious())
+                .build();
         return PageResponse.<CouponResponse>builder()
-            .data(content)
-            .pagination(metadata)
-            .build();
+                .data(content)
+                .pagination(metadata)
+                .build();
     }
 }

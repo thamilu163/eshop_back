@@ -23,20 +23,16 @@ import com.eshop.app.constants.ApiConstants;
 @RestController
 @RequestMapping(ApiConstants.Endpoints.ORDERS)
 public class OrderController {
-    
+
     private final OrderService orderService;
-    
+
     public OrderController(OrderService orderService) {
         this.orderService = orderService;
     }
-    
+
     @PostMapping
     @PreAuthorize("hasAnyRole('CUSTOMER', 'ADMIN')")
-    @Operation(
-        summary = "Create new order",
-        description = "Create a new order from cart items. Available for CUSTOMER and ADMIN roles.",
-        security = @SecurityRequirement(name = "Bearer Authentication")
-    )
+    @Operation(summary = "Create new order", description = "Create a new order from cart items. Available for CUSTOMER and ADMIN roles.", security = @SecurityRequirement(name = "Bearer Authentication"))
     public ResponseEntity<ApiResponse<OrderResponse>> createOrder(
             @Valid @RequestBody OrderCreateRequest request) {
         OrderResponse response = orderService.createOrder(request);
@@ -44,33 +40,25 @@ public class OrderController {
                 .status(HttpStatus.CREATED)
                 .body(ApiResponse.success("Order created successfully", response));
     }
-    
+
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('CUSTOMER', 'SELLER', 'DELIVERY_AGENT', 'ADMIN')")
-    @Operation(
-        summary = "Get order by ID",
-        description = "Retrieve order details by order ID. Accessible by all authenticated roles.",
-        security = @SecurityRequirement(name = "Bearer Authentication")
-    )
+    @Operation(summary = "Get order by ID", description = "Retrieve order details by order ID. Accessible by all authenticated roles.", security = @SecurityRequirement(name = "Bearer Authentication"))
     public ResponseEntity<ApiResponse<OrderResponse>> getOrderById(
             @Parameter(description = "Order ID") @PathVariable Long id) {
         OrderResponse response = orderService.getOrderById(id);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
-    
+
     @GetMapping("/number/{orderNumber}")
     @PreAuthorize("hasAnyRole('CUSTOMER', 'SELLER', 'DELIVERY_AGENT', 'ADMIN')")
-    @Operation(
-        summary = "Get order by order number",
-        description = "Retrieve order details by order number (e.g., ORD-20251202-001).",
-        security = @SecurityRequirement(name = "Bearer Authentication")
-    )
+    @Operation(summary = "Get order by order number", description = "Retrieve order details by order number (e.g., ORD-20251202-001).", security = @SecurityRequirement(name = "Bearer Authentication"))
     public ResponseEntity<ApiResponse<OrderResponse>> getOrderByOrderNumber(
             @Parameter(description = "Order Number") @PathVariable String orderNumber) {
         OrderResponse response = orderService.getOrderByOrderNumber(orderNumber);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
-    
+
     @GetMapping("/my-orders")
     @PreAuthorize("hasAnyRole('CUSTOMER', 'ADMIN')")
     public ResponseEntity<ApiResponse<PageResponse<OrderResponse>>> getMyOrders(
@@ -80,7 +68,7 @@ public class OrderController {
         PageResponse<OrderResponse> response = orderService.getMyOrders(pageable);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
-    
+
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<PageResponse<OrderResponse>>> getAllOrders(
@@ -90,7 +78,7 @@ public class OrderController {
         PageResponse<OrderResponse> response = orderService.getAllOrders(pageable);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
-    
+
     @GetMapping("/status/{status}")
     @PreAuthorize("hasAnyRole('SELLER', 'ADMIN')")
     public ResponseEntity<ApiResponse<PageResponse<OrderResponse>>> getOrdersByStatus(
@@ -101,18 +89,18 @@ public class OrderController {
         PageResponse<OrderResponse> response = orderService.getOrdersByStatus(status, pageable);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
-    
-    @GetMapping("/shop/{shopId}")
+
+    @GetMapping("/store/{storeId}")
     @PreAuthorize("hasAnyRole('SELLER', 'ADMIN')")
-    public ResponseEntity<ApiResponse<PageResponse<OrderResponse>>> getOrdersByShop(
-            @PathVariable Long shopId,
+    public ResponseEntity<ApiResponse<PageResponse<OrderResponse>>> getOrdersByStore(
+            @PathVariable Long storeId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
-        PageResponse<OrderResponse> response = orderService.getOrdersByShop(shopId, pageable);
+        PageResponse<OrderResponse> response = orderService.getOrdersByStore(storeId, pageable);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
-    
+
     @PutMapping("/{orderId}/status")
     @PreAuthorize("hasAnyRole('SELLER', 'ADMIN')")
     public ResponseEntity<ApiResponse<OrderResponse>> updateOrderStatus(
@@ -121,7 +109,7 @@ public class OrderController {
         OrderResponse response = orderService.updateOrderStatus(orderId, status);
         return ResponseEntity.ok(ApiResponse.success("Order status updated", response));
     }
-    
+
     @PutMapping("/{orderId}/payment-status")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<OrderResponse>> updatePaymentStatus(
@@ -130,7 +118,7 @@ public class OrderController {
         OrderResponse response = orderService.updatePaymentStatus(orderId, status);
         return ResponseEntity.ok(ApiResponse.success("Payment status updated", response));
     }
-    
+
     @PutMapping("/{orderId}/assign-delivery-agent")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<OrderResponse>> assignDeliveryAgent(
@@ -139,7 +127,7 @@ public class OrderController {
         OrderResponse response = orderService.assignDeliveryAgent(orderId, agentId);
         return ResponseEntity.ok(ApiResponse.success("Delivery agent assigned", response));
     }
-    
+
     @GetMapping("/delivery/my-deliveries")
     @PreAuthorize("hasAnyRole('DELIVERY_AGENT', 'ADMIN')")
     public ResponseEntity<ApiResponse<PageResponse<OrderResponse>>> getDeliveryAgentOrders(
@@ -147,6 +135,17 @@ public class OrderController {
             @RequestParam(defaultValue = "10") int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
         PageResponse<OrderResponse> response = orderService.getDeliveryAgentOrders(pageable);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @GetMapping("/seller")
+    @PreAuthorize("hasAnyRole('SELLER', 'ADMIN')")
+    @Operation(summary = "Get seller orders", description = "Retrieve all orders containing items from the authenticated seller's stores.", security = @SecurityRequirement(name = "Bearer Authentication"))
+    public ResponseEntity<ApiResponse<PageResponse<OrderResponse>>> getSellerOrders(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        PageResponse<OrderResponse> response = orderService.getSellerOrders(pageable);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 }
