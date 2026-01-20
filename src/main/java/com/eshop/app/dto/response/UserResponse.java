@@ -25,7 +25,7 @@ public class UserResponse {
     private Boolean emailVerified;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
-    private String sellerType;
+
     private StoreInfo shop;
 
     @Data
@@ -35,6 +35,6 @@ public class UserResponse {
     public static class StoreInfo {
         private Long id;
         private String storeName;
-        private String sellerType;
+
     }
 }

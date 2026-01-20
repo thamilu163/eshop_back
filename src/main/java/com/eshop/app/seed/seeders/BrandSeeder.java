@@ -1,6 +1,6 @@
 package com.eshop.app.seed.seeders;
 
-import com.eshop.app.config.properties.SeedProperties;
+
 import com.eshop.app.entity.Brand;
 import com.eshop.app.repository.BrandRepository;
 import com.eshop.app.seed.core.Seeder;
@@ -27,12 +27,12 @@ import java.util.stream.Collectors;
 public class BrandSeeder implements Seeder<Brand, SeederContext> {
     
     private final BrandRepository brandRepository;
-    private final SeedProperties seedProperties;
+    private final com.eshop.app.seed.provider.BrandDataProvider brandDataProvider;
     
     @Override
     public List<Brand> seed(SeederContext context) {
         try {
-            List<Brand> brands = seedProperties.getBrands().stream()
+            List<Brand> brands = brandDataProvider.getBrands().stream()
                 .map(this::buildBrand)
                 .toList();
             
@@ -75,11 +75,11 @@ public class BrandSeeder implements Seeder<Brand, SeederContext> {
         return "BrandSeeder";
     }
     
-    private Brand buildBrand(SeedProperties.BrandSeed cfg) {
+    private Brand buildBrand(com.eshop.app.seed.model.BrandData cfg) {
         return Brand.builder()
-            .name(cfg.getName())
-            .description(cfg.getDescription())
-            .logoUrl(cfg.getLogoUrl())
+            .name(cfg.name())
+            .description(cfg.description())
+            .logoUrl(cfg.logoUrl())
             .active(true)
             .build();
     }

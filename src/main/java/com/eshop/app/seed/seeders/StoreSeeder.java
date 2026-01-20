@@ -1,6 +1,6 @@
 package com.eshop.app.seed.seeders;
 
-import com.eshop.app.config.properties.SeedProperties;
+
 import com.eshop.app.entity.Store;
 import com.eshop.app.entity.User;
 import com.eshop.app.repository.StoreRepository;
@@ -31,14 +31,14 @@ import java.util.stream.Collectors;
 public class StoreSeeder implements Seeder<Store, SeederContext> {
 
     private final StoreRepository storeRepository;
-    private final SeedProperties seedProperties;
+    private final com.eshop.app.seed.provider.StoreDataProvider storeDataProvider;
 
     @Override
     public List<Store> seed(SeederContext context) {
         try {
             Map<String, User> users = context.getUsers();
 
-            List<Store> storesList = seedProperties.getShops().stream()
+            List<Store> storesList = storeDataProvider.getStores().stream()
                     .map(cfg -> buildStore(cfg, users))
                     .filter(Optional::isPresent)
                     .map(Optional::get)
@@ -87,37 +87,25 @@ public class StoreSeeder implements Seeder<Store, SeederContext> {
      * Build store with null-safe seller lookup.
      * Skips store if seller not found.
      */
-    private Optional<Store> buildStore(SeedProperties.ShopSeed cfg, Map<String, User> users) {
-        User seller = users.get(cfg.getSellerUsername());
+    private Optional<Store> buildStore(com.eshop.app.seed.model.StoreData cfg, Map<String, User> users) {
+        User seller = users.get(cfg.sellerUsername());
 
         if (seller == null) {
             log.warn("Skipping store '{}': seller '{}' not found",
-                    cfg.getShopName(), cfg.getSellerUsername());
+                    cfg.storeName(), cfg.sellerUsername());
             return Optional.empty();
         }
 
         return Optional.of(Store.builder()
-                .storeName(cfg.getShopName())
-                .description(cfg.getDescription())
-                .address(cfg.getAddress())
-                .phone(cfg.getPhone())
-                .email(cfg.getEmail())
-                .logoUrl(cfg.getLogoUrl())
+                .storeName(cfg.storeName())
+                .description(cfg.description())
+                .address(cfg.address())
+                .phone(cfg.phone())
+                .email(cfg.email())
+                .logoUrl(cfg.logoUrl())
                 .seller(seller)
-                .sellerType(parseSellerType(cfg.getSellerType()))
                 .active(true)
                 .build());
     }
 
-    private User.SellerType parseSellerType(String sellerType) {
-        if (sellerType == null || sellerType.isBlank()) {
-            return null;
-        }
-        try {
-            return User.SellerType.valueOf(sellerType.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            log.warn("Invalid sellerType '{}', setting to null", sellerType);
-            return null;
-        }
-    }
 }

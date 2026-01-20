@@ -1,5 +1,8 @@
 package com.eshop.app.entity;
 
+import com.eshop.app.enums.SellerIdentityType;
+import com.eshop.app.enums.SellerBusinessType;
+import java.util.Set;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -7,7 +10,7 @@ import lombok.*;
 @Table(name = "seller_profiles", indexes = {
     @Index(name = "idx_seller_profile_user_id", columnList = "user_id"),
     @Index(name = "idx_seller_profile_status", columnList = "status"),
-    @Index(name = "idx_seller_profile_seller_type", columnList = "seller_type")
+        @Index(name = "idx_seller_profile_identity_type", columnList = "identity_type")
 })
 @Getter
 @Setter
@@ -17,8 +20,18 @@ import lombok.*;
 public class SellerProfile extends BaseEntity {
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "seller_type", nullable = false, length = 20)
-    private User.SellerType sellerType;
+    @Column(name = "identity_type", nullable = false, length = 20)
+    private SellerIdentityType identityType;
+
+    @ElementCollection(targetClass = SellerBusinessType.class)
+    @CollectionTable(name = "seller_business_types", joinColumns = @JoinColumn(name = "seller_profile_id"))
+    @Enumerated(EnumType.STRING)
+    @Column(name = "business_type")
+    private Set<SellerBusinessType> businessTypes;
+
+    @Column(name = "is_own_produce")
+    @Builder.Default
+    private Boolean isOwnProduce = false;
 
     @Column(name = "display_name", nullable = false, length = 100)
     private String displayName;
@@ -56,8 +69,8 @@ public class SellerProfile extends BaseEntity {
     @Column(length = 150)
     private String businessType;
 
-    @Column(length = 150)
-    private String shopName;
+    @Column(length = 150, name = "store_name")
+    private String storeName;
 
     @Column(length = 150)
     private String farmLocationVillage;
@@ -71,6 +84,13 @@ public class SellerProfile extends BaseEntity {
     @Column(name = "bulk_pricing_agreement")
     @Builder.Default
     private Boolean bulkPricingAgreement = false;
+
+    // New KYC Fields
+    @Column(name = "authorized_signatory", length = 100)
+    private String authorizedSignatory;
+
+    @Column(name = "registration_proof", length = 500)
+    private String registrationProof;
 
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false, unique = true)

@@ -11,7 +11,7 @@ public interface UserMapper {
     UserMapper INSTANCE = Mappers.getMapper(UserMapper.class);
 
     @Mapping(target = "role", source = "role")
-    @Mapping(target = "sellerType", source = "sellerType")
+
     @Mapping(target = "shop", source = "store")
     UserResponse toUserResponse(User user);
 }

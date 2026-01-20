@@ -1,7 +1,6 @@
 package com.eshop.app.seed.core;
 
 import com.eshop.app.config.properties.SeedProperties;
-import com.eshop.app.repository.UserRepository;
 import com.eshop.app.seed.validation.SeedPropertiesValidator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,7 +24,6 @@ import java.util.Set;
 public class SeedOrchestrator {
     
     private final List<Seeder<?, ?>> seeders;
-    private final UserRepository userRepository;
     private final Environment environment;
     private final SeedPropertiesValidator validator;
     private final SeedProperties seedProperties;
@@ -44,9 +42,11 @@ public class SeedOrchestrator {
         // Validate configuration before proceeding
         validator.validate(seedProperties);
         
-        // Check if seeding needed (idempotency)
-        if (!shouldSeed()) {
-            log.info("Database already seeded, skipping");
+        // Check if seeding globally disabled (only checks validation/profile before
+        // this)
+        // Individual seeders will check their own 'enabled' flags.
+        if (!seedProperties.isEnabled()) {
+            log.info("Seeding globally disabled via app.seed.enabled=false");
             return SeedingResult.builder()
                 .skipped(true)
                 .durationMs(0)
@@ -105,18 +105,7 @@ public class SeedOrchestrator {
         }
     }
     
-    /**
-     * Check if seeding should proceed.
-     * Prevents duplicate seeding if data already exists.
-     */
-    private boolean shouldSeed() {
-        long userCount = userRepository.count();
-        if (userCount > 0) {
-            log.debug("Found {} existing users, skipping seed", userCount);
-            return false;
-        }
-        return true;
-    }
+
     
     /**
      * Validate that seeding is only run in dev/test/local profiles.

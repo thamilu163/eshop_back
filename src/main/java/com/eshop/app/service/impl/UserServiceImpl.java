@@ -2,11 +2,8 @@ package com.eshop.app.service.impl;
 
 import com.eshop.app.dto.request.UserUpdateRequest;
 import com.eshop.app.dto.request.UserSelfUpdateRequest;
-import com.eshop.app.dto.request.PasswordChangeRequest;
-import com.eshop.app.dto.request.ChangePasswordRequest;
 import com.eshop.app.dto.response.BulkOperationResult;
 import com.eshop.app.enums.ExportFormat;
-import com.eshop.app.service.AuthService;
 import com.eshop.app.dto.response.PageResponse;
 import com.eshop.app.dto.response.UserResponse;
 import com.eshop.app.entity.User;
@@ -18,6 +15,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.eshop.app.enums.UserRole;
 import lombok.extern.slf4j.Slf4j;
 
 @Service
@@ -27,14 +25,12 @@ public class UserServiceImpl implements UserService {
     
     private final UserRepository userRepository;
     private final UserMapper userMapper;
-    private final AuthService authService;
     private final org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
     
-    public UserServiceImpl(UserRepository userRepository, UserMapper userMapper, AuthService authService,
+    public UserServiceImpl(UserRepository userRepository, UserMapper userMapper,
                            org.springframework.security.crypto.password.PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
         this.userMapper = userMapper;
-        this.authService = authService;
         this.passwordEncoder = passwordEncoder;
     }
     
@@ -96,7 +92,7 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional(readOnly = true)
     public PageResponse<UserResponse> getUsersByRole(String role, Pageable pageable) {
-        User.UserRole userRole = User.UserRole.valueOf(role.toUpperCase());
+        UserRole userRole = UserRole.valueOf(role.toUpperCase());
         Page<User> userPage = userRepository.findByRole(userRole, pageable);
         return PageResponse.of(userPage, userMapper::toUserResponse);
     }
@@ -138,7 +134,7 @@ public class UserServiceImpl implements UserService {
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
         // Map API enum to entity enum
         try {
-            User.UserRole entityRole = User.UserRole.valueOf(newRole.name());
+            UserRole entityRole = UserRole.valueOf(newRole.name());
             user.setRole(entityRole);
         } catch (IllegalArgumentException e) {
             throw new ResourceNotFoundException("Invalid role: " + newRole);
@@ -147,15 +143,7 @@ public class UserServiceImpl implements UserService {
         return userMapper.toUserResponse(user);
     }
 
-    @Override
-    public void changePassword(Long id, PasswordChangeRequest request) {
-        // Delegate to AuthService which contains password handling logic
-        ChangePasswordRequest cr = new ChangePasswordRequest();
-        cr.setCurrentPassword(request.getCurrentPassword());
-        cr.setNewPassword(request.getNewPassword());
-        cr.setConfirmPassword(request.getNewPassword());
-        authService.changePassword(id, cr);
-    }
+
 
     @Override
     public void hardDeleteUser(Long id) {
@@ -274,19 +262,19 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional(readOnly = true)
     public long getCustomerCount() {
-        return userRepository.countByRole(User.UserRole.CUSTOMER);
+        return userRepository.countByRole(UserRole.CUSTOMER);
     }
     
     @Override
     @Transactional(readOnly = true)
     public long getSellerCount() {
-        return userRepository.countByRole(User.UserRole.SELLER);
+        return userRepository.countByRole(UserRole.SELLER);
     }
     
     @Override
     @Transactional(readOnly = true)
     public long getDeliveryAgentCount() {
-        return userRepository.countByRole(User.UserRole.DELIVERY_AGENT);
+        return userRepository.countByRole(UserRole.DELIVERY_AGENT);
     }
     
     @Override
@@ -360,7 +348,7 @@ public class UserServiceImpl implements UserService {
                 .password(encoded)
                 .firstName(firstName)
                 .lastName(lastName)
-                .role(User.UserRole.CUSTOMER)
+                .role(UserRole.CUSTOMER)
                 .emailVerified(Boolean.TRUE.equals(emailVerified))
                 .active(true)
                 .build();

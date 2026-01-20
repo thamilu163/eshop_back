@@ -187,7 +187,7 @@ public class SellerStoreController {
             **Authentication:** JWT Bearer token required
             
             **Request Body Requirements:**
-            - shopName: Required, 3-100 characters
+                    - storeName: Required, 3-100 characters
             - shopDescription: Optional, max 500 characters
             
             **Business Rules:**
@@ -291,9 +291,8 @@ public class SellerStoreController {
         
         // Auto-populate required fields from authenticated user
         request.setSellerId(seller.getId());
-        request.setSellerType(seller.getSellerType());
-        
-        log.debug("Auto-populated request: sellerId={}, sellerType={}", seller.getId(), seller.getSellerType());
+
+        log.debug("Auto-populated request: sellerId={}", seller.getId());
         
         StoreResponse store = storeService.createStore(request);
         
@@ -325,7 +324,7 @@ public class SellerStoreController {
             **Authentication:** JWT Bearer token required
             
             **Request Body:**
-            - shopName: Required, 3-100 characters
+                    - storeName: Required, 3-100 characters
             - shopDescription: Optional, max 500 characters
             
             **Business Rules:**

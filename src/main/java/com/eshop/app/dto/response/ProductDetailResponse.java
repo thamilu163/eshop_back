@@ -116,7 +116,7 @@ public class ProductDetailResponse {
     private Long shopId;
     
     @Schema(description = "Shop name", example = "Tech Store")
-    private String shopName;
+    private String storeName;
     
     @Schema(description = "Tax class ID")
     private Long taxClassId;

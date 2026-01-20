@@ -363,6 +363,23 @@ public class GlobalExceptionHandler {
                 
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
         }
+
+        @ExceptionHandler(ResourceNotFoundException.class)
+        public ResponseEntity<ErrorResponse> handleResourceNotFoundException(
+                ResourceNotFoundException ex, HttpServletRequest request) {
+                log.warn("Resource not found: {}", ex.getMessage());
+                
+                ErrorResponse error = ErrorResponse.builder()
+                        .timestamp(Instant.now())
+                        .status(HttpStatus.NOT_FOUND.value())
+                        .error(HttpStatus.NOT_FOUND.getReasonPhrase())
+                        .message(ex.getMessage())
+                        .path(getRequestPath(request))
+                        .errorCode("RESOURCE_NOT_FOUND")
+                        .build();
+                
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+        }
         
         @ExceptionHandler(MissingServletRequestParameterException.class)
         public ResponseEntity<ApiError> handleMissingParameter(
@@ -467,6 +484,66 @@ public class GlobalExceptionHandler {
                 return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
         }
         
+        // ═══════════════════════════════════════════════════════════════
+        // Category Seeding Exceptions
+        // ═══════════════════════════════════════════════════════════════
+
+        @ExceptionHandler(CategorySeedingException.class)
+        public ResponseEntity<ApiError> handleCategorySeedingException(
+                        CategorySeedingException ex, HttpServletRequest request) {
+                String errorId = java.util.UUID.randomUUID().toString();
+                log.error("[errorId={}] Category seeding failed: {}", errorId, ex.getMessage(), ex);
+
+                ApiError error = ApiError.builder()
+                                .timestamp(Instant.now())
+                                .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
+                                .error(HttpStatus.INTERNAL_SERVER_ERROR.getReasonPhrase())
+                                .message("Category seeding operation failed. Please check logs for details.")
+                                .path(getRequestPath(request))
+                                .correlationId(getCorrelationId())
+                                .errorCode(ex.getErrorCode())
+                                .build();
+
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+
+        @ExceptionHandler(DuplicateCategoryException.class)
+        public ResponseEntity<ApiError> handleDuplicateCategoryException(
+                        DuplicateCategoryException ex, HttpServletRequest request) {
+                log.warn("Duplicate category detected: {} under parent: {}",
+                                ex.getCategoryName(), ex.getParentPath());
+
+                ApiError error = ApiError.builder()
+                                .timestamp(Instant.now())
+                                .status(HttpStatus.CONFLICT.value())
+                                .error(HttpStatus.CONFLICT.getReasonPhrase())
+                                .message(ex.getMessage())
+                                .path(getRequestPath(request))
+                                .correlationId(getCorrelationId())
+                                .errorCode(ex.getErrorCode())
+                                .build();
+
+                return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
+        }
+
+        @ExceptionHandler(InvalidCategoryHierarchyException.class)
+        public ResponseEntity<ApiError> handleInvalidCategoryHierarchyException(
+                        InvalidCategoryHierarchyException ex, HttpServletRequest request) {
+                log.warn("Invalid category hierarchy: {}", ex.getMessage());
+
+                ApiError error = ApiError.builder()
+                                .timestamp(Instant.now())
+                                .status(HttpStatus.BAD_REQUEST.value())
+                                .error(HttpStatus.BAD_REQUEST.getReasonPhrase())
+                                .message(ex.getMessage())
+                                .path(getRequestPath(request))
+                                .correlationId(getCorrelationId())
+                                .errorCode(ex.getErrorCode())
+                                .build();
+
+                return ResponseEntity.badRequest().body(error);
+        }
+
         // ═══════════════════════════════════════════════════════════════
         // Catch-All Handler
         // ═══════════════════════════════════════════════════════════════

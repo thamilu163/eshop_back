@@ -127,5 +127,5 @@ public class TopSellingProductResponse {
     private Long sellerId;
     
     @Schema(description = "Shop name", example = "Premium Tech Store")
-    private String shopName;
+    private String storeName;
 }

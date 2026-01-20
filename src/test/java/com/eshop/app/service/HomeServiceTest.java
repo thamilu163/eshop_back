@@ -2,6 +2,7 @@ package com.eshop.app.service;
 
 import com.eshop.app.dto.response.HomeResponse;
 import com.eshop.app.entity.User;
+import com.eshop.app.enums.UserRole;
 import com.eshop.app.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -33,7 +34,7 @@ class HomeServiceTest {
                 .username("admin@eshop.com")
                 .firstName("Admin")
                 .lastName("User")
-                .role(User.UserRole.ADMIN)
+                .role(UserRole.ADMIN)
             .active(true)
                 .build();
 
@@ -42,7 +43,7 @@ class HomeServiceTest {
                 .username("seller@eshop.com")
                 .firstName("Seller")
                 .lastName("User")
-                .role(User.UserRole.SELLER)
+                .role(UserRole.SELLER)
             .active(true)
                 .build();
 
@@ -51,7 +52,7 @@ class HomeServiceTest {
                 .username("customer@eshop.com")
                 .firstName("Customer")
                 .lastName("User")
-                .role(User.UserRole.CUSTOMER)
+                .role(UserRole.CUSTOMER)
             .active(true)
                 .build();
 
@@ -60,7 +61,7 @@ class HomeServiceTest {
                 .username("delivery@eshop.com")
                 .firstName("Delivery")
                 .lastName("Agent")
-                .role(User.UserRole.DELIVERY_AGENT)
+                .role(UserRole.DELIVERY_AGENT)
             .active(true)
                 .build();
     }

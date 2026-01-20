@@ -25,29 +25,16 @@ public class SeedProperties {
     /** Enable/disable seeding (default: true for dev profile) */
     private boolean enabled = true;
 
+    private boolean usersEnabled = true;
+    private boolean categoriesEnabled = true;
+    private boolean brandsEnabled = true;
+    private boolean tagsEnabled = true;
+    private boolean shopsEnabled = true;
+    private boolean productsEnabled = true;
+
     /** Users to seed */
     @Valid
     private List<UserSeed> users = new ArrayList<>();
-
-    /** Categories to seed */
-    @Valid
-    private List<CategorySeed> categories = new ArrayList<>();
-
-    /** Brands to seed */
-    @Valid
-    private List<BrandSeed> brands = new ArrayList<>();
-
-    /** Tags to seed */
-    @Valid
-    private List<TagSeed> tags = new ArrayList<>();
-
-    /** Shops to seed */
-    @Valid
-    private List<ShopSeed> shops = new ArrayList<>();
-
-    /** Products to seed */
-    @Valid
-    private List<ProductSeed> products = new ArrayList<>();
 
     @Getter
     @Setter
@@ -62,63 +49,5 @@ public class SeedProperties {
         private String address;
         private String role; // ADMIN, SELLER, CUSTOMER, DELIVERY_AGENT
         private String sellerType; // INDIVIDUAL, BUSINESS, FARMER, WHOLESALER, RETAILER
-    }
-
-    @Getter
-    @Setter
-    public static class CategorySeed {
-        @NotBlank
-        private String name;
-        private String description;
-        private String imageUrl;
-    }
-
-    @Getter
-    @Setter
-    public static class BrandSeed {
-        @NotBlank
-        private String name;
-        private String description;
-        private String logoUrl;
-    }
-
-    @Getter
-    @Setter
-    public static class TagSeed {
-        @NotBlank
-        private String name;
-    }
-
-    @Getter
-    @Setter
-    public static class ShopSeed {
-        @NotBlank
-        private String shopName;
-        private String description;
-        private String address;
-        private String phone;
-        private String email;
-        private String logoUrl;
-        private String sellerUsername; // link to seeded user
-        private String sellerType;
-    }
-
-    @Getter
-    @Setter
-    public static class ProductSeed {
-        @NotBlank
-        private String name;
-        private String description;
-        private String sku;
-        private String price; // use string to allow placeholder resolution
-        private String discountPrice;
-        private Integer stockQuantity;
-        private String imageUrl;
-        private String categoryName;
-        private String brandName;
-        private String shopName;
-        private List<String> tags = new ArrayList<>();
-        private boolean featured = false;
-        private boolean active = true;
     }
 }

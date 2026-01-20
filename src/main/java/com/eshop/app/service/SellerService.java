@@ -43,15 +43,19 @@ public class SellerService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
 
-        // CRITICAL: Update User entity's sellerType so store creation can read it
-        user.setSellerType(request.getSellerType());
-        userRepository.save(user);
-        log.info("Updated User entity sellerType to: {} for userId: {}", request.getSellerType(), userId);
+        // CRITICAL: Update User entity's sellerType (If needed for backward comp.,
+        // otherwise remove)
+        // user.setSellerType(request.getSellerType());
+        // userRepository.save(user);
+        // log.info("Updated User entity sellerType to: {} for userId: {}",
+        // request.getSellerType(), userId);
 
         // Create profile
         SellerProfile profile = SellerProfile.builder()
                 .user(user)
-                .sellerType(request.getSellerType())
+                .identityType(request.getIdentityType())
+                .businessTypes(request.getBusinessTypes())
+                .isOwnProduce(request.getIsOwnProduce())
                 .displayName(request.getDisplayName())
                 .businessName(request.getBusinessName())
                 .email(request.getEmail())
@@ -59,17 +63,26 @@ public class SellerService {
                 .taxId(request.getTaxId())
                 .description(request.getDescription())
                 .status(SellerProfile.SellerStatus.ACTIVE)
-                // Legacy fields
+                // Legacy fields (optional if needed for backward compatibility or data
+                // migration)
                 .aadhar(request.getAadhar())
                 .pan(request.getPan())
                 .gstin(request.getGstin())
-                .businessType(request.getBusinessType())
-                .shopName(request.getStoreName() != null ? request.getStoreName() : request.getShopName())
+                .businessType(request.getBusinessType()) // You might want to remove this if fully deprecated
+                .storeName(request.getStoreName())
                 .farmLocationVillage(request.getFarmLocationVillage())
                 .landArea(request.getLandArea())
                 .warehouseLocation(request.getWarehouseLocation())
                 .bulkPricingAgreement(request.getBulkPricingAgreement())
+                // KYC Fields
+                .authorizedSignatory(request.getAuthorizedSignatory())
+                .registrationProof(request.getRegistrationProof())
                 .build();
+
+        // Handle Business PAN mapping or fallback
+        if (request.getPan() == null && request.getBusinessPan() != null) {
+            profile.setPan(request.getBusinessPan());
+        }
 
         SellerProfile saved = sellerProfileRepository.save(profile);
         log.info("Seller profile created with id: {} for userId: {}", saved.getId(), userId);
@@ -99,7 +112,7 @@ public class SellerService {
         SellerProfile profile = sellerProfileRepository.findByUser_Id(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Seller profile not found for userId: " + userId));
 
-        profile.setSellerType(request.getSellerType());
+        // profile.setSellerType(request.getSellerType()); // Removed
         profile.setDisplayName(request.getDisplayName());
         profile.setBusinessName(request.getBusinessName());
         profile.setEmail(request.getEmail());
@@ -111,11 +124,23 @@ public class SellerService {
         profile.setPan(request.getPan());
         profile.setGstin(request.getGstin());
         profile.setBusinessType(request.getBusinessType());
-        profile.setShopName(request.getStoreName());
+        profile.setStoreName(request.getStoreName());
         profile.setFarmLocationVillage(request.getFarmLocationVillage());
         profile.setLandArea(request.getLandArea());
         profile.setWarehouseLocation(request.getWarehouseLocation());
+
         profile.setBulkPricingAgreement(request.getBulkPricingAgreement());
+
+        // KYC Updates
+        if (request.getAuthorizedSignatory() != null)
+            profile.setAuthorizedSignatory(request.getAuthorizedSignatory());
+        if (request.getRegistrationProof() != null)
+            profile.setRegistrationProof(request.getRegistrationProof());
+
+        // Handle Business PAN update
+        if (request.getBusinessPan() != null) {
+            profile.setPan(request.getBusinessPan());
+        }
 
         profile.setUpdatedBy(userId.toString());
 
@@ -129,7 +154,7 @@ public class SellerService {
             store.setEmail(request.getEmail());
             store.setPhone(request.getPhone());
             store.setDescription(request.getDescription());
-            store.setSellerType(request.getSellerType());
+            // store.setSellerType(request.getSellerType()); // Removed
             store.setUpdatedBy(userId.toString());
             storeRepository.save(store);
         });
@@ -173,7 +198,10 @@ public class SellerService {
         return SellerProfileResponse.builder()
                 .id(profile.getId())
                 .userId(profile.getUser() != null ? profile.getUser().getId() : null)
-                .sellerType(profile.getSellerType())
+                .identityType(profile.getIdentityType())
+                .businessTypes(
+                        profile.getBusinessTypes() != null ? new java.util.HashSet<>(profile.getBusinessTypes()) : null)
+                .isOwnProduce(profile.getIsOwnProduce())
                 .displayName(profile.getDisplayName())
                 .businessName(profile.getBusinessName())
                 .email(profile.getEmail())
@@ -188,11 +216,13 @@ public class SellerService {
                 .pan(profile.getPan())
                 .gstin(profile.getGstin())
                 .businessType(profile.getBusinessType())
-                .shopName(profile.getShopName())
+                .storeName(profile.getStoreName())
                 .farmLocationVillage(profile.getFarmLocationVillage())
                 .landArea(profile.getLandArea())
                 .warehouseLocation(profile.getWarehouseLocation())
                 .bulkPricingAgreement(profile.getBulkPricingAgreement())
+                .authorizedSignatory(profile.getAuthorizedSignatory())
+                .registrationProof(profile.getRegistrationProof())
                 .build();
     }
 }

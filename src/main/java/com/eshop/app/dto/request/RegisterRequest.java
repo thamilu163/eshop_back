@@ -94,7 +94,7 @@ public class RegisterRequest {
     private String businessType;
 
     @Size(max = 150)
-    private String shopName;
+    private String storeName;
 
     @Size(max = 150)
     private String businessName;

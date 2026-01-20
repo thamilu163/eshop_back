@@ -344,7 +344,7 @@ public class DashboardController {
             else if (authentication.getPrincipal() instanceof org.springframework.security.oauth2.jwt.Jwt) jwt = (org.springframework.security.oauth2.jwt.Jwt) authentication.getPrincipal();
         }
 
-        Long sellerId = jwt != null ? jwt.getClaim("user_id") : null;
+        Long sellerId = sellerService.resolveUserId(authentication);
         String username = jwt != null ? jwt.getClaimAsString("preferred_username") : "anonymous";
 
         // CRITICAL: Log authentication success with roles
@@ -399,14 +399,7 @@ public class DashboardController {
     public ResponseEntity<ApiResponse<com.eshop.app.dto.analytics.SellerStatistics>> getSellerStatistics(
             org.springframework.security.core.Authentication authentication) {
 
-        org.springframework.security.oauth2.jwt.Jwt jwt = null;
-        if (authentication != null) {
-            Object cred = authentication.getCredentials();
-            if (cred instanceof org.springframework.security.oauth2.jwt.Jwt) jwt = (org.springframework.security.oauth2.jwt.Jwt) cred;
-            else if (authentication.getPrincipal() instanceof org.springframework.security.oauth2.jwt.Jwt) jwt = (org.springframework.security.oauth2.jwt.Jwt) authentication.getPrincipal();
-        }
-
-        Long sellerId = jwt != null ? jwt.getClaim("user_id") : null;
+        Long sellerId = sellerService.resolveUserId(authentication);
         log.info("Seller statistics requested for seller ID: {}", sellerId);
 
         com.eshop.app.dto.analytics.SellerStatistics statistics = sellerAnalyticsService.getSellerStatistics(sellerId);
@@ -451,7 +444,7 @@ public class DashboardController {
             else if (authentication.getPrincipal() instanceof org.springframework.security.oauth2.jwt.Jwt) jwt = (org.springframework.security.oauth2.jwt.Jwt) authentication.getPrincipal();
         }
 
-        Long sellerId = jwt != null ? jwt.getClaim("user_id") : null;
+        Long sellerId = sellerService.resolveUserId(authentication);
         String username = jwt != null ? jwt.getClaimAsString("preferred_username") : "anonymous";
         org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size);
         log.info("Top selling products requested for seller: {}, page: {}, size: {}", username, page, size);

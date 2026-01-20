@@ -39,9 +39,10 @@ public class SecurityConfig {
     private JwtAuthenticationEntryPoint unauthorizedHandler;
     
     // @Bean - Disabled to prevent conflict with OAuth2SecurityConfig
-    public JwtAuthenticationFilter jwtAuthenticationFilter() {
-        return new JwtAuthenticationFilter();
-    }
+    // @Bean - Disabled to prevent conflict with OAuth2SecurityConfig
+    // public JwtAuthenticationFilter jwtAuthenticationFilter() {
+    // return new JwtAuthenticationFilter();
+    // }
     
     // @Bean - Disabled, using bean from OAuth2SecurityConfig
     public PasswordEncoder passwordEncoder() {
@@ -121,7 +122,8 @@ public class SecurityConfig {
                 .anyRequest().authenticated()
             );
         
-        http.addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
+        // http.addFilterBefore(jwtAuthenticationFilter(),
+        // UsernamePasswordAuthenticationFilter.class);
         
         return http.build();
     }

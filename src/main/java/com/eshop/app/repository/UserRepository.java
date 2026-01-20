@@ -1,5 +1,6 @@
 package com.eshop.app.repository;
 
+import com.eshop.app.enums.UserRole;
 import com.eshop.app.entity.User;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -29,7 +30,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
     
     boolean existsByEmail(String email);
     
-    Page<User> findByRole(User.UserRole role, Pageable pageable);
+    Page<User> findByRole(UserRole role, Pageable pageable);
     
     Page<User> findByActive(Boolean active, Pageable pageable);
     
@@ -41,7 +42,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Page<User> searchUsers(@Param("keyword") String keyword, Pageable pageable);
     
     // Dashboard Analytics Methods
-    long countByRole(User.UserRole role);
+    long countByRole(UserRole role);
     long countByActiveTrue();
     long countByCreatedAtAfter(java.time.LocalDateTime createdAt);
     

@@ -1,6 +1,5 @@
 package com.eshop.app.seed.seeders;
 
-import com.eshop.app.config.properties.SeedProperties;
 import com.eshop.app.entity.Tag;
 import com.eshop.app.repository.TagRepository;
 import com.eshop.app.seed.core.Seeder;
@@ -27,12 +26,12 @@ import java.util.stream.Collectors;
 public class TagSeeder implements Seeder<Tag, SeederContext> {
     
     private final TagRepository tagRepository;
-    private final SeedProperties seedProperties;
+    private final com.eshop.app.seed.provider.TagDataProvider tagDataProvider;
     
     @Override
     public List<Tag> seed(SeederContext context) {
         try {
-            List<Tag> tags = seedProperties.getTags().stream()
+            List<Tag> tags = tagDataProvider.getTags().stream()
                 .map(this::buildTag)
                 .toList();
             
@@ -75,9 +74,9 @@ public class TagSeeder implements Seeder<Tag, SeederContext> {
         return "TagSeeder";
     }
     
-    private Tag buildTag(SeedProperties.TagSeed cfg) {
+    private Tag buildTag(com.eshop.app.seed.model.TagData cfg) {
         return Tag.builder()
-            .name(cfg.getName())
+            .name(cfg.name())
             .build();
     }
 }

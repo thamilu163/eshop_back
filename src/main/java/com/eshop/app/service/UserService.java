@@ -5,7 +5,7 @@ import com.eshop.app.dto.response.PageResponse;
 import com.eshop.app.dto.response.UserResponse;
 import org.springframework.data.domain.Pageable;
 import com.eshop.app.dto.request.UserSelfUpdateRequest;
-import com.eshop.app.dto.request.PasswordChangeRequest;
+
 import com.eshop.app.dto.response.BulkOperationResult;
 import com.eshop.app.enums.ExportFormat;
 import com.eshop.app.enums.UserRole;
@@ -21,8 +21,8 @@ public interface UserService {
     PageResponse<UserResponse> getUsersByActiveStatus(Boolean active, Pageable pageable);
     UserResponse activateUser(Long id);
     UserResponse deactivateUser(Long id);
+
     UserResponse changeRole(Long id, UserRole newRole);
-    void changePassword(Long id, PasswordChangeRequest request);
     void hardDeleteUser(Long id);
     void softDeleteUser(Long id);
     BulkOperationResult bulkActivate(java.util.List<Long> userIds);

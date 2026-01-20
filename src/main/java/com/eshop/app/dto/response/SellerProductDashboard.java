@@ -44,7 +44,7 @@ public class SellerProductDashboard {
     private Long shopId;
     
     @Schema(description = "Shop name", example = "TechStore Main Branch")
-    private String shopName;
+    private String storeName;
     
     // ═══════════════════════════════════════════════════════════════
     // PRODUCT COUNTS

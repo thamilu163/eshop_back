@@ -2,8 +2,9 @@ package com.eshop.app.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import com.eshop.app.enums.UserRole;
 
-import java.util.HashSet;
+
 import java.util.Set;
 
 @Entity
@@ -41,59 +42,50 @@ public class User extends BaseEntity {
     @Column(length = 500)
     private String address;
     
+    @OneToOne(mappedBy = "seller", fetch = FetchType.LAZY)
+    private Store store;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private UserRole role;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "seller_type", length = 20)
-    private SellerType sellerType;
-    
     @Column(nullable = false)
     @Builder.Default
     private Boolean active = true;
-    
-    @Column(name = "email_verified")
+
+    @Column(name = "email_verified", nullable = false)
     @Builder.Default
     private Boolean emailVerified = false;
-    
+
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
+    private SellerProfile sellerProfile;
+
+    // Assuming Cart and Order entities exist but I don't want to import them if not
+    // needed.
+    // They are used in ToString exclude so they must exist in the class.
+
+    // I need imports for these too potentially?
+    // User.java in Step 113 imports: jakarta.persistence.*, lombok.*,
+    // java.util.HashSet, java.util.Set.
+    // It does NOT import Cart, Order, etc.
+    // If they are in same package com.eshop.app.entity, no import needed.
+
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
+    private Cart cart;
+
+    @OneToMany(mappedBy = "customer", cascade = CascadeType.ALL)
+    private Set<Order> orders;
+
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
+    private DeliveryAgentProfile deliveryAgentProfile;
+
     @Column(name = "two_factor_enabled")
     @Builder.Default
     private Boolean twoFactorEnabled = false;
 
-    @Column(name = "two_factor_secret", length = 500)
+    @Column(name = "two_factor_secret")
     private String twoFactorSecret;
-    
-    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    private Cart cart;
-    
-    @OneToOne(mappedBy = "seller", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    private Store store;
-    
-    @OneToMany(mappedBy = "customer", cascade = CascadeType.ALL, orphanRemoval = true)
-    @Builder.Default
-    private Set<Order> orders = new HashSet<>();
 
-    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    private DeliveryAgentProfile deliveryAgentProfile;
-
-    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    private SellerProfile sellerProfile;
-    
-    public enum UserRole {
-        ADMIN,
-        SELLER,
-        CUSTOMER,
-        DELIVERY_AGENT
-    }
-    
-    public enum SellerType {
-        INDIVIDUAL,       // Individual seller (small scale)
-        BUSINESS,         // Business entity (replaces SHOP)
-        FARMER,           // Farm-grown products seller
-        WHOLESALER,       // Wholesale/bulk sales
-        RETAILER          // Retail sales (replaces RETAIL_SELLER)
-    }
     // Explicit getter for compatibility
     public String getUsername() {
         return this.username;

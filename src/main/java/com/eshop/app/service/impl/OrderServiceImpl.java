@@ -1,6 +1,7 @@
 package com.eshop.app.service.impl;
 
 import com.eshop.app.dto.request.CheckoutRequest;
+import com.eshop.app.enums.UserRole;
 import com.eshop.app.dto.request.OrderCreateRequest;
 import com.eshop.app.dto.response.OrderResponse;
 import com.eshop.app.dto.response.PageResponse;
@@ -222,7 +223,7 @@ public class OrderServiceImpl implements OrderService {
         User agent = userRepository.findById(agentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Delivery agent not found"));
 
-        if (agent.getRole() != User.UserRole.DELIVERY_AGENT) {
+        if (agent.getRole() != UserRole.DELIVERY_AGENT) {
             throw new IllegalArgumentException("User is not a delivery agent");
         }
 
@@ -420,7 +421,7 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional(readOnly = true)
     public BigDecimal getTotalRevenueBySellerId(Long sellerId) {
-        return orderRepository.sumRevenueBySellerIdBetweenDates(sellerId, java.time.LocalDateTime.MIN,
+        return orderRepository.sumRevenueBySellerIdBetweenDates(sellerId, java.time.LocalDateTime.of(1970, 1, 1, 0, 0),
                 java.time.LocalDateTime.now());
     }
 

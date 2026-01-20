@@ -7,25 +7,28 @@ import java.time.LocalDateTime;
 /**
  * DTO-based projection for product details using constructor expression.
  * 
- * <p>This is a class-based projection that can be used in JPQL queries
+ * <p>
+ * This is a class-based projection that can be used in JPQL queries
  * with constructor expression for optimal performance.
  * 
- * <p>Example usage:
+ * <p>
+ * Example usage:
+ * 
  * <pre>
  * &#64;Query("""
- *     SELECT new com.eshop.app.repository.projection.ProductDetailProjection(
- *         p.id, p.name, p.description, p.sku, p.friendlyUrl,
- *         p.price, p.discountPrice, p.stockQuantity, p.imageUrl,
- *         p.status, p.featured, p.isMaster,
- *         c.id, c.name, b.id, b.name, s.id, s.shopName,
- *         p.createdAt, p.updatedAt, p.version
- *     )
- *     FROM Product p
- *     LEFT JOIN p.category c
- *     LEFT JOIN p.brand b
- *     LEFT JOIN p.shop s
- *     WHERE p.id = :id AND p.deleted = false
- * """)
+ *             SELECT new com.eshop.app.repository.projection.ProductDetailProjection(
+ *                 p.id, p.name, p.description, p.sku, p.friendlyUrl,
+ *                 p.price, p.discountPrice, p.stockQuantity, p.imageUrl,
+ *                 p.status, p.featured, p.isMaster,
+ *                 c.id, c.name, b.id, b.name, s.id, s.storeName,
+ *                 p.createdAt, p.updatedAt, p.version
+ *             )
+ *             FROM Product p
+ *             LEFT JOIN p.category c
+ *             LEFT JOIN p.brand b
+ *             LEFT JOIN p.shop s
+ *             WHERE p.id = :id AND p.deleted = false
+ *         """)
  * Optional&lt;ProductDetailProjection&gt; findDetailById(Long id);
  * </pre>
  * 

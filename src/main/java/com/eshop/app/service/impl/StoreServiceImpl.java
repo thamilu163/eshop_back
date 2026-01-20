@@ -5,6 +5,7 @@ import com.eshop.app.dto.response.PageResponse;
 import com.eshop.app.dto.response.StoreResponse;
 import com.eshop.app.entity.Store;
 import com.eshop.app.entity.User;
+import com.eshop.app.enums.UserRole;
 import com.eshop.app.exception.ResourceAlreadyExistsException;
 import com.eshop.app.exception.ResourceNotFoundException;
 import com.eshop.app.mapper.StoreMapper;
@@ -45,7 +46,7 @@ public class StoreServiceImpl implements StoreService {
         User seller = userRepository.findById(request.getSellerId())
                 .orElseThrow(() -> new ResourceNotFoundException("Seller not found"));
 
-        if (seller.getRole() != User.UserRole.SELLER) {
+        if (seller.getRole() != UserRole.SELLER) {
             throw new IllegalArgumentException("User is not a seller");
         }
 
@@ -61,7 +62,7 @@ public class StoreServiceImpl implements StoreService {
                 .email(request.getEmail())
                 .logoUrl(request.getLogoUrl())
                 .seller(seller)
-                .sellerType(request.getSellerType())
+
                 .active(true)
                 .build();
 
@@ -85,7 +86,7 @@ public class StoreServiceImpl implements StoreService {
         store.setPhone(request.getPhone());
         store.setEmail(request.getEmail());
         store.setLogoUrl(request.getLogoUrl());
-        store.setSellerType(request.getSellerType());
+
 
         store = storeRepository.save(store);
         return storeMapper.toStoreResponse(store);

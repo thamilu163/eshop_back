@@ -45,8 +45,6 @@ public class SeedPropertiesValidator {
         // Business validation
         validateUniqueUsernames(properties.getUsers());
         validateUniqueEmails(properties.getUsers());
-        validateShopSellerReferences(properties);
-        validateProductReferences(properties);
         
         log.debug("Seed configuration validated successfully");
     }
@@ -81,60 +79,6 @@ public class SeedPropertiesValidator {
         if (!duplicates.isEmpty()) {
             throw new InvalidSeedConfigException(
                 "Duplicate emails found: " + duplicates);
-        }
-    }
-    
-    /**
-     * Validate shop references point to existing users.
-     */
-    private void validateShopSellerReferences(SeedProperties properties) {
-        Set<String> usernames = properties.getUsers().stream()
-            .map(SeedProperties.UserSeed::getUsername)
-            .collect(Collectors.toSet());
-        
-        List<String> invalidShops = properties.getShops().stream()
-            .filter(shop -> shop.getSellerUsername() != null)
-            .filter(shop -> !usernames.contains(shop.getSellerUsername()))
-            .map(shop -> shop.getShopName() + " -> " + shop.getSellerUsername())
-            .toList();
-        
-        if (!invalidShops.isEmpty()) {
-            log.warn("Shops reference non-existent sellers (will be skipped): {}", invalidShops);
-        }
-    }
-    
-    /**
-     * Validate product references point to existing catalog items.
-     */
-    private void validateProductReferences(SeedProperties properties) {
-        Set<String> categoryNames = properties.getCategories().stream()
-            .map(SeedProperties.CategorySeed::getName)
-            .collect(Collectors.toSet());
-        
-        Set<String> shopNames = properties.getShops().stream()
-            .map(SeedProperties.ShopSeed::getShopName)
-            .collect(Collectors.toSet());
-        
-        List<String> productsWithMissingCategory = properties.getProducts().stream()
-            .filter(p -> p.getCategoryName() != null)
-            .filter(p -> !categoryNames.contains(p.getCategoryName()))
-            .map(SeedProperties.ProductSeed::getName)
-            .toList();
-        
-        List<String> productsWithMissingShop = properties.getProducts().stream()
-            .filter(p -> p.getShopName() != null)
-            .filter(p -> !shopNames.contains(p.getShopName()))
-            .map(SeedProperties.ProductSeed::getName)
-            .toList();
-        
-        if (!productsWithMissingCategory.isEmpty()) {
-            log.warn("Products reference non-existent categories (will be skipped): {}", 
-                productsWithMissingCategory);
-        }
-        
-        if (!productsWithMissingShop.isEmpty()) {
-            log.warn("Products reference non-existent shops (will be skipped): {}", 
-                productsWithMissingShop);
         }
     }
 }

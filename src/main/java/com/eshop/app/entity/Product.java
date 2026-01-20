@@ -924,7 +924,7 @@ public class Product {
     @CollectionTable(name = "product_attribute_map", joinColumns = @JoinColumn(name = "product_id", foreignKey = @ForeignKey(name = "fk_product_attr_map_product")), indexes = {
             @Index(name = "idx_pattr_map_product_id", columnList = "product_id"),
             @Index(name = "idx_pattr_map_name", columnList = "attribute_name"),
-            @Index(name = "idx_pattr_map_value", columnList = "attribute_value(255)")
+            @Index(name = "idx_pattr_map_value", columnList = "attribute_value")
     })
     @MapKeyColumn(name = "attribute_name", length = 100)
     @Column(name = "attribute_value", length = 2000)

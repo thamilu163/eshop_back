@@ -1,18 +1,27 @@
 package com.eshop.app.dto.request;
 
-import com.eshop.app.entity.User;
+
 import jakarta.validation.constraints.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
+import com.eshop.app.enums.SellerIdentityType;
+import com.eshop.app.enums.SellerBusinessType;
+import java.util.Set;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class SellerRegisterRequest {
 
-    @NotNull(message = "Seller type is required")
-    private User.SellerType sellerType;
+    @NotNull(message = "Seller identity type is required")
+    private SellerIdentityType identityType;
+
+    @NotEmpty(message = "At least one business type is required")
+    private Set<SellerBusinessType> businessTypes;
+
+    private Boolean isOwnProduce;
 
     @NotBlank(message = "Display name is required")
     @Size(min = 2, max = 100, message = "Display name must be between 2 and 100 characters")
@@ -43,9 +52,14 @@ public class SellerRegisterRequest {
     private String gstin;
     private String businessType;
     private String storeName;
-    private String shopName;
+
     private String farmLocationVillage;
     private String landArea;
     private String warehouseLocation;
     private Boolean bulkPricingAgreement;
+    
+    // New KYC Fields from Frontend
+    private String businessPan;
+    private String authorizedSignatory;
+    private String registrationProof;
 }

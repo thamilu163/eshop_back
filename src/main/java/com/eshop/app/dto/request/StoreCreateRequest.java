@@ -1,6 +1,6 @@
 package com.eshop.app.dto.request;
 
-import com.eshop.app.entity.User;
+
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
@@ -36,6 +36,5 @@ public class StoreCreateRequest {
     // Auto-populated from JWT token in controller
     private Long sellerId;
 
-    // Auto-populated from JWT token in controller
-    private User.SellerType sellerType;
+
 }

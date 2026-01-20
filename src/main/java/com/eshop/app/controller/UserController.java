@@ -92,21 +92,7 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.success("Profile updated successfully", response));
     }
 
-    @PutMapping("/me/password")
-    @PreAuthorize("isAuthenticated()")
-    @RateLimiter(name = "passwordChange")
-    @Operation(summary = "Change current user password")
-    public ResponseEntity<ApiResponse<Void>> changePassword(
-            @AuthenticationPrincipal UserDetailsImpl userDetails,
-            @Valid @RequestBody PasswordChangeRequest request) {
-        
-        log.info("User {} changing password", userDetails.getId());
-        
-        userService.changePassword(userDetails.getId(), request);
-        auditService.logUserAction(userDetails.getId(), userDetails.getId(), UserAction.PASSWORD_CHANGE);
-        
-        return ResponseEntity.ok(ApiResponse.success("Password changed successfully", null));
-    }
+
 
     // ==================== USER CRUD ENDPOINTS ====================
 

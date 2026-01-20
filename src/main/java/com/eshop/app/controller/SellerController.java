@@ -83,7 +83,8 @@ public class SellerController {
                           "data": {
                             "id": 1,
                             "userId": 123,
-                            "sellerType": "FARMER",
+                                                                    "identityType": "INDIVIDUAL",
+                                                                    "businessTypes": ["FARMER"],
                             "displayName": "Green Valley Farm",
                             "email": "contact@greenvalley.com",
                             "phone": "+919876543210",
@@ -130,7 +131,8 @@ public class SellerController {
                             name = "Farmer Seller",
                             value = """
                                 {
-                                  "sellerType": "FARMER",
+                                                                                              "identityType": "INDIVIDUAL",
+                                                                                              "businessTypes": ["FARMER"],
                                   "displayName": "Green Valley Farm",
                                   "businessName": "Green Valley Organic Farms Pvt Ltd",
                                   "email": "contact@greenvalley.com",
@@ -147,7 +149,8 @@ public class SellerController {
                             name = "Business Seller",
                             value = """
                                 {
-                                  "sellerType": "BUSINESS",
+                                                                                              "identityType": "BUSINESS",
+                                                                                              "businessTypes": ["RETAILER"],
                                   "displayName": "TechHub Electronics",
                                   "businessName": "TechHub Electronics Pvt Ltd",
                                   "email": "sales@techhub.com",
@@ -165,7 +168,7 @@ public class SellerController {
             @Parameter(hidden = true) Authentication authentication) {
         
         Long userId = sellerService.resolveUserId(authentication);
-        log.info("Seller registration request for userId: {}, sellerType: {}", userId, request.getSellerType());
+        log.info("Seller registration request for userId: {}, identityType: {}", userId, request.getIdentityType());
         
         SellerProfileResponse response = sellerService.registerSeller(userId, request);
         
@@ -207,7 +210,8 @@ public class SellerController {
                           "data": {
                             "id": 1,
                             "userId": 123,
-                            "sellerType": "FARMER",
+                                                "identityType": "INDIVIDUAL",
+                                                "businessTypes": ["FARMER"],
                             "displayName": "Green Valley Farm",
                             "businessName": "Green Valley Organic Farms Pvt Ltd",
                             "email": "contact@greenvalley.com",
@@ -273,8 +277,7 @@ public class SellerController {
         description = """
             Update the authenticated seller's profile information.
             
-            **Updatable Fields:**
-            - Seller type
+                            **Updatable Fields:**
             - Display name
             - Business name
             - Contact information (email, phone)
@@ -301,7 +304,8 @@ public class SellerController {
                           "data": {
                             "id": 1,
                             "userId": 123,
-                            "sellerType": "FARMER",
+                                                                    "identityType": "INDIVIDUAL",
+                                                                    "businessTypes": ["FARMER"],
                             "displayName": "Green Valley Organic Farm",
                             "email": "newemail@greenvalley.com",
                             "phone": "+919876543211",
@@ -338,8 +342,7 @@ public class SellerController {
                     schema = @Schema(implementation = SellerProfileUpdateRequest.class),
                     examples = @ExampleObject(
                         value = """
-                            {
-                              "sellerType": "FARMER",
+                                                            {
                               "displayName": "Green Valley Organic Farm",
                               "businessName": "Green Valley Organic Farms Pvt Ltd",
                               "email": "newemail@greenvalley.com",

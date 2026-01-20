@@ -11,6 +11,7 @@ import com.eshop.app.seed.security.SecurePasswordGenerator;
 import com.eshop.app.service.auth.KeycloakAdminService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import com.eshop.app.enums.UserRole;
 import org.springframework.core.annotation.Order;
 import org.springframework.dao.DataAccessException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -42,16 +43,22 @@ public class UserSeeder implements Seeder<User, SeederContext> {
 
     @Override
     public List<User> seed(SeederContext context) {
+        // If disabled, just load existing users to context so other seeders can
+        // function
+        if (!seedProperties.isUsersEnabled()) {
+            log.info("User seeding disabled. Loading existing users into context...");
+            List<User> existingUsers = userRepository.findAll();
+            populateContext(context, existingUsers);
+            return existingUsers;
+        }
+
         try {
             List<User> users = seedProperties.getUsers().stream()
                     .map(this::processAndBuildUser)
                     .toList();
 
             List<User> savedUsers = userRepository.saveAll(users);
-
-            // Populate context for dependent seeders
-            context.setUsers(savedUsers.stream()
-                    .collect(Collectors.toMap(User::getUsername, Function.identity())));
+            populateContext(context, savedUsers);
 
             log.info("Seeded {} users successfully to Local DB and Keycloak", savedUsers.size());
             return savedUsers;
@@ -65,8 +72,18 @@ public class UserSeeder implements Seeder<User, SeederContext> {
         }
     }
 
+    private void populateContext(SeederContext context, List<User> users) {
+        context.setUsers(users.stream()
+                .collect(Collectors.toMap(User::getUsername, Function.identity())));
+    }
+
     @Override
     public void cleanup() {
+        if (!seedProperties.isUsersEnabled()) {
+            log.info("User seeding disabled, skipping cleanup (deletion) of users");
+            return;
+        }
+
         try {
             // Note: We only clean up local DB. Cleaning up Keycloak is risky/complex for
             // dev
@@ -110,7 +127,6 @@ public class UserSeeder implements Seeder<User, SeederContext> {
                 .phone(cfg.getPhone())
                 .address(cfg.getAddress())
                 .role(parseRole(cfg.getRole()))
-                .sellerType(parseSellerType(cfg.getSellerType()))
                 .active(true)
                 .emailVerified(true) // Keycloak handles this, but we mark local as verified
                 .build();
@@ -143,30 +159,16 @@ public class UserSeeder implements Seeder<User, SeederContext> {
     /**
      * Parse role with fallback to CUSTOMER if invalid.
      */
-    private User.UserRole parseRole(String role) {
+    private UserRole parseRole(String role) {
         if (role == null || role.isBlank()) {
-            return User.UserRole.CUSTOMER;
+            return UserRole.CUSTOMER;
         }
         try {
-            return User.UserRole.valueOf(role.toUpperCase());
+            return UserRole.valueOf(role.toUpperCase());
         } catch (IllegalArgumentException e) {
             log.warn("Invalid role '{}', defaulting to CUSTOMER", role);
-            return User.UserRole.CUSTOMER;
+            return UserRole.CUSTOMER;
         }
     }
 
-    /**
-     * Parse seller type with null fallback for non-sellers.
-     */
-    private User.SellerType parseSellerType(String sellerType) {
-        if (sellerType == null || sellerType.isBlank()) {
-            return null;
-        }
-        try {
-            return User.SellerType.valueOf(sellerType.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            log.warn("Invalid sellerType '{}', setting to null", sellerType);
-            return null;
-        }
-    }
 }

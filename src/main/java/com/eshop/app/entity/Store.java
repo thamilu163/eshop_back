@@ -72,11 +72,7 @@ public class Store extends BaseEntity {
     
     @Column
     private Double rating; // Store rating (0-5)
-    
-    @Enumerated(EnumType.STRING)
-    @Column(name = "seller_type", length = 20)
-    private User.SellerType sellerType;
-    
+
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "seller_id", nullable = false, unique = true)
     private User seller;

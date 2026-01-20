@@ -3,6 +3,7 @@ package com.eshop.app.service;
 import com.eshop.app.dto.response.HomeResponse;
 import com.eshop.app.entity.Order;
 import com.eshop.app.entity.User;
+import com.eshop.app.enums.UserRole;
 import com.eshop.app.repository.OrderRepository;
 import com.eshop.app.repository.ProductRepository;
 import com.eshop.app.repository.StoreRepository;
@@ -55,7 +56,7 @@ public class HomeService {
             return HomeResponse.forGuest();
         }
 
-        User.UserRole role = user.getRole();
+        UserRole role = user.getRole();
         String userName = user.getFirstName() + " " + user.getLastName();
 
         log.info("Generating home page data for user: {} with role: {}", userName, role);
@@ -120,14 +121,14 @@ public class HomeService {
                     ? orderRepository.sumRevenueBetweenDates(startOfMonth, endOfMonth)
                     : null;
 
-            data.put("shopName", user.getStore().getStoreName());
+            data.put("storeName", user.getStore().getStoreName());
             data.put("totalProducts", totalProducts);
             data.put("totalOrders", totalOrders);
             data.put("pendingOrders", pendingOrders);
             data.put("monthlySales", monthlySales != null ? "₹" + monthlySales : "₹0");
             data.put("shopStatus", user.getStore().getActive() ? "Active" : "Inactive");
         } else {
-            data.put("shopName", "No Shop");
+            data.put("storeName", "No Store");
             data.put("totalProducts", 0);
             data.put("totalOrders", 0);
             data.put("pendingOrders", 0);

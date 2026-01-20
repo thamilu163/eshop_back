@@ -1,13 +1,17 @@
 package com.eshop.app.dto.response;
 
 import com.eshop.app.entity.SellerProfile;
-import com.eshop.app.entity.User;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+
+import com.eshop.app.enums.SellerIdentityType;
+import com.eshop.app.enums.SellerBusinessType;
+import java.util.Set;
 
 @Data
 @NoArgsConstructor
@@ -16,7 +20,9 @@ import java.time.LocalDateTime;
 public class SellerProfileResponse {
     private Long id;
     private Long userId;
-    private User.SellerType sellerType;
+    private SellerIdentityType identityType;
+    private Set<SellerBusinessType> businessTypes;
+    private Boolean isOwnProduce;
     private String displayName;
     private String businessName;
     private String email;
@@ -32,9 +38,14 @@ public class SellerProfileResponse {
     private String pan;
     private String gstin;
     private String businessType;
-    private String shopName;
+    private String storeName;
     private String farmLocationVillage;
     private String landArea;
+
     private String warehouseLocation;
     private Boolean bulkPricingAgreement;
+
+    // KYC Fields
+    private String authorizedSignatory;
+    private String registrationProof;
 }

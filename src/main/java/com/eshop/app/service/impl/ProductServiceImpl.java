@@ -1073,7 +1073,7 @@ public class ProductServiceImpl implements ProductService {
                     .sellerId(
                             p.getStore() != null && p.getStore().getSeller() != null ? p.getStore().getSeller().getId()
                                     : null)
-                    .shopName(p.getStore() != null ? p.getStore().getStoreName() : null)
+                    .storeName(p.getStore() != null ? p.getStore().getStoreName() : null)
                     .build());
         }
         return result;

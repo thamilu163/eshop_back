@@ -128,8 +128,7 @@ public class EnhancedSecurityConfig {
                 .requestMatchers("/auth/config").permitAll()
                 
                 // Public auth endpoints
-                .requestMatchers(
-                    "/api/v1/auth/**",
+                        .requestMatchers(
                     "/api/v1/public/**",
                     "/api/auth/**",
                     "/auth/_log"
@@ -213,17 +212,8 @@ public class EnhancedSecurityConfig {
                 )
             );
 
-        // Add legacy JWT filter for local auth support (e.g. seeding scripts)
-        http.addFilterBefore(jwtAuthenticationFilter(), org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class);
-
         return http.build();
     }
-
-    @Bean
-    public com.eshop.app.security.JwtAuthenticationFilter jwtAuthenticationFilter() {
-        return new com.eshop.app.security.JwtAuthenticationFilter();
-    }
-
     // JWT decoder is provided by JwtAudienceValidatorConfig; injected into the security filter chain.
 
     /**

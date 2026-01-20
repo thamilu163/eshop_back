@@ -1,6 +1,6 @@
 package com.eshop.app.dto.request;
 
-import com.eshop.app.entity.User;
+
 import jakarta.validation.constraints.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -11,8 +11,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class SellerProfileUpdateRequest {
     
-    @NotNull(message = "Seller type is required")
-    private User.SellerType sellerType;
+
     
     @NotBlank(message = "Display name is required")
     @Size(min = 2, max = 100, message = "Display name must be between 2 and 100 characters")
@@ -47,4 +46,9 @@ public class SellerProfileUpdateRequest {
     private String landArea;
     private String warehouseLocation;
     private Boolean bulkPricingAgreement;
+    
+    // KYC Fields
+    private String authorizedSignatory;
+    private String registrationProof;
+    private String businessPan; // For updating passing businessPan
 }

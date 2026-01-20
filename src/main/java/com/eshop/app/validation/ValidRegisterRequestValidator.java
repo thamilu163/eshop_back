@@ -47,10 +47,10 @@ public class ValidRegisterRequestValidator implements ConstraintValidator<ValidR
                         valid = false;
                     }
                 } else {
-                    // non-farmer sellers require shopName and businessName
-                    if (isBlank(request.getShopName())) {
-                        context.buildConstraintViolationWithTemplate("shopName is required for this seller type")
-                                .addPropertyNode("shopName").addConstraintViolation();
+                    // non-farmer sellers require storeName and businessName
+                    if (isBlank(request.getStoreName())) {
+                        context.buildConstraintViolationWithTemplate("storeName is required for this seller type")
+                                .addPropertyNode("storeName").addConstraintViolation();
                         valid = false;
                     }
                     if (isBlank(request.getBusinessName())) {
