@@ -41,8 +41,7 @@ import java.util.stream.Collectors;
         @SecurityScheme(name = "bearerAuth", type = SecuritySchemeType.HTTP, bearerFormat = "JWT", scheme = "bearer", description = "JWT Bearer token authentication"),
         @SecurityScheme(name = "oauth2", type = SecuritySchemeType.OAUTH2, description = "OAuth2 authentication with Keycloak",
                 flows = @OAuthFlows(authorizationCode = @OAuthFlow(
-                        authorizationUrl = "${app.swagger.security.authorization-url:http://localhost:8080/realms/eshop/protocol/openid-connect/auth}",
-                        tokenUrl = "${app.swagger.security.token-url:http://localhost:8080/realms/eshop/protocol/openid-connect/token}",
+                                                authorizationUrl = "${app.swagger.security.authorization-url}", tokenUrl = "${app.swagger.security.token-url}",
                         scopes = {@OAuthScope(name = "openid", description = "OpenID Connect scope"), @OAuthScope(name = "profile", description = "User profile"), @OAuthScope(name = "email", description = "User email")}
                 ))),
         @SecurityScheme(name = "apiKey", type = SecuritySchemeType.APIKEY, in = SecuritySchemeIn.HEADER, paramName = "X-API-KEY", description = "API Key for service-to-service communication")
@@ -173,14 +172,10 @@ public class SwaggerConfig implements WebMvcConfigurer {
                 }
         }
 
-        // GroupedOpenApi beans were intentionally omitted to avoid compile-time
-        // dependency issues in environments where the Springdoc GroupedOpenApi
-        // class is not present. API grouping can be added later if the
-        // dependency is available in the build.
-
         @Override
         public void addViewControllers(ViewControllerRegistry registry) {
-                List<String> redirectSources = List.of("/swagger-ui.html", "/swagger-ui", "/docs", "/api-docs", "/documentation");
+                List<String> redirectSources = List.of("/swagger-ui.html", "/swagger-ui", "/docs", "/api-docs",
+                                "/documentation");
                 redirectSources.forEach(source -> registry.addRedirectViewController(source, "/swagger-ui/index.html"));
                 log.debug("Registered {} Swagger redirect view controllers", redirectSources.size());
         }

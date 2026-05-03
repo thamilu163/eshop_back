@@ -1,5 +1,6 @@
 package com.eshop.app.service.impl;
 
+import com.eshop.app.config.properties.AppProperties;
 import com.eshop.app.dto.request.PaymentRequest;
 import com.eshop.app.dto.request.RefundRequest;
 import com.eshop.app.dto.response.PageResponse;
@@ -21,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -42,26 +44,23 @@ import java.util.stream.Collectors;
 @Slf4j
 @Transactional
 public class PaymentServiceImpl implements PaymentService {
-    
-    // Business rule constants
-    private static final BigDecimal MIN_PAYMENT_AMOUNT = new BigDecimal("0.01");
-    private static final BigDecimal MAX_PAYMENT_AMOUNT = new BigDecimal("100000.00");
-    private static final Set<String> ALLOWED_GATEWAYS = Set.of("STRIPE", "PAYPAL", "RAZORPAY");
-    private static final Set<String> ALLOWED_CURRENCIES = Set.of("USD", "EUR", "INR", "GBP");
-    
+
     private final PaymentRepository paymentRepository;
     private final OrderRepository orderRepository;
     private final PaymentMapper paymentMapper;
+    private final AppProperties appProperties;
     // Payment gateway is optional in tests; allow null and provide fallback
-    private PaymentGatewayService paymentGatewayService;
+    private final PaymentGatewayService paymentGatewayService;
 
     public PaymentServiceImpl(PaymentRepository paymentRepository,
                               OrderRepository orderRepository,
                               PaymentMapper paymentMapper,
+            AppProperties appProperties,
                               java.util.Optional<PaymentGatewayService> paymentGatewayService) {
         this.paymentRepository = paymentRepository;
         this.orderRepository = orderRepository;
         this.paymentMapper = paymentMapper;
+        this.appProperties = appProperties;
         this.paymentGatewayService = paymentGatewayService.orElse(null);
     }
     
@@ -276,12 +275,8 @@ public class PaymentServiceImpl implements PaymentService {
             WebhookEvent event = parseWebhookPayload(payload, gateway);
             
             // Find payment by gateway transaction ID
-            Payment payment = paymentRepository.findByGatewayTransactionId(event.getTransactionId())
-                    .orElse(null);
-            
-            if (payment != null) {
-                updatePaymentFromWebhook(payment, event);
-            }
+            paymentRepository.findByGatewayTransactionId(event.getTransactionId())
+                    .ifPresent(payment -> updatePaymentFromWebhook(payment, event));
             
         } catch (Exception e) {
             log.error("Error processing webhook for gateway: {}", gateway, e);
@@ -372,18 +367,25 @@ public class PaymentServiceImpl implements PaymentService {
      * Validates amount, gateway, and currency before processing
      */
     private void validatePaymentRequest(PaymentRequest request) {
+        AppProperties.Business business = appProperties.getBusiness();
+        BigDecimal minAmount = BigDecimal.valueOf(business.getMinPaymentAmount());
+        BigDecimal maxAmount = BigDecimal.valueOf(business.getMaxPaymentAmount());
+        Set<String> allowedGateways = Set.copyOf(Arrays.asList(business.getAllowedGateways().toUpperCase().split(",")));
+        Set<String> allowedCurrencies = Set
+                .copyOf(Arrays.asList(business.getAllowedCurrencies().toUpperCase().split(",")));
+
         // Validate amount
         if (request.getAmount() == null) {
             throw new PaymentException("Payment amount is required");
         }
-        if (request.getAmount().compareTo(MIN_PAYMENT_AMOUNT) < 0) {
+        if (request.getAmount().compareTo(minAmount) < 0) {
             throw new PaymentException(String.format(
-                "Payment amount must be at least %s", MIN_PAYMENT_AMOUNT
+                    "Payment amount must be at least %s", minAmount
             ));
         }
-        if (request.getAmount().compareTo(MAX_PAYMENT_AMOUNT) > 0) {
+        if (request.getAmount().compareTo(maxAmount) > 0) {
             throw new PaymentException(String.format(
-                "Payment amount exceeds maximum allowed %s", MAX_PAYMENT_AMOUNT
+                    "Payment amount exceeds maximum allowed %s", maxAmount
             ));
         }
         
@@ -392,10 +394,10 @@ public class PaymentServiceImpl implements PaymentService {
             throw new PaymentException("Payment gateway is required");
         }
         String gatewayStr = request.getGateway().toString().toUpperCase();
-        if (!ALLOWED_GATEWAYS.contains(gatewayStr)) {
+        if (!allowedGateways.contains(gatewayStr)) {
             throw new PaymentException(String.format(
                 "Invalid payment gateway: %s. Allowed: %s",
-                gatewayStr, ALLOWED_GATEWAYS
+                    gatewayStr, allowedGateways
             ));
         }
         
@@ -404,10 +406,10 @@ public class PaymentServiceImpl implements PaymentService {
             throw new PaymentException("Currency is required");
         }
         String currencyStr = request.getCurrency().toUpperCase();
-        if (!ALLOWED_CURRENCIES.contains(currencyStr)) {
+        if (!allowedCurrencies.contains(currencyStr)) {
             throw new PaymentException(String.format(
                 "Invalid currency: %s. Allowed: %s",
-                currencyStr, ALLOWED_CURRENCIES
+                    currencyStr, allowedCurrencies
             ));
         }
         

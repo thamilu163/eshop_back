@@ -4,58 +4,38 @@ import jakarta.persistence.*;
 import lombok.*;
 import com.eshop.app.enums.UserRole;
 
-
 import java.util.Set;
 
 @Entity
-@Table(name = "users", indexes = {
-    @Index(name = "idx_user_email", columnList = "email"),
-    @Index(name = "idx_user_username", columnList = "username")
-})
+@Table(name = "users")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@ToString(exclude = { "cart", "store", "orders", "deliveryAgentProfile", "sellerProfile" })
-@EqualsAndHashCode(callSuper = true, of = {"email"})
+@ToString(exclude = { "cart", "orders", "deliveryAgentProfile", "sellerProfile", "userProfile" })
+@EqualsAndHashCode(callSuper = true, of = { "keycloakId" })
 public class User extends BaseEntity {
-    
-    @Column(nullable = false, unique = true, length = 100)
+
+    @Column(name = "keycloak_id", unique = true, nullable = false)
+    private String keycloakId;
+
+    @Column(name = "username", length = 100)
     private String username;
-    
-    @Column(nullable = false, unique = true, length = 150)
+
+    @Column(name = "email", length = 150)
     private String email;
-    
-    @Column(nullable = false)
-    private String password;
-    
-    @Column(name = "first_name", nullable = true, length = 100)
-    private String firstName;
-    
-    @Column(name = "last_name", nullable = true, length = 100)
-    private String lastName;
-    
-    @Column(length = 20)
-    private String phone;
-    
-    @Column(length = 500)
-    private String address;
-    
-    @OneToOne(mappedBy = "seller", fetch = FetchType.LAZY)
-    private Store store;
+
+    @Column(name = "email_verified")
+    @Builder.Default
+    private Boolean emailVerified = false;
+
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
+    private UserProfile userProfile;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private UserRole role;
-
-    @Column(nullable = false)
-    @Builder.Default
-    private Boolean active = true;
-
-    @Column(name = "email_verified", nullable = false)
-    @Builder.Default
-    private Boolean emailVerified = false;
 
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
     private SellerProfile sellerProfile;
@@ -86,25 +66,18 @@ public class User extends BaseEntity {
     @Column(name = "two_factor_secret")
     private String twoFactorSecret;
 
-    // Explicit getter for compatibility
-    public String getUsername() {
-        return this.username;
-    }
-    public void setUsername(String username) {
-        this.username = username;
-    }
+    // Simplified getters/setters via Lombok @Getter/@Setter
 
-    // Explicit getters for compatibility
-    public UserRole getRole() {
-        return this.role;
-    }
-    public Boolean getActive() {
-        return this.active;
-    }
-    public String getEmail() {
-        return this.email;
-    }
-    public String getPassword() {
-        return this.password;
+
+    /**
+     * Backward compatibility helper to get the user's store.
+     * Navigates through SellerProfile to first available store.
+     */
+    @Transient
+    public Store getStore() {
+        if (sellerProfile != null && sellerProfile.getStores() != null && !sellerProfile.getStores().isEmpty()) {
+            return sellerProfile.getStores().iterator().next();
+        }
+        return null;
     }
 }

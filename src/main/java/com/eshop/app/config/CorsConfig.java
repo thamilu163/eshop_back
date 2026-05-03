@@ -1,24 +1,35 @@
 package com.eshop.app.config;
 
+import com.eshop.app.config.properties.AppProperties;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
-
+import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
-import com.eshop.app.constants.ApiConstants;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
-// @Configuration
+@Configuration
+@RequiredArgsConstructor
 public class CorsConfig {
+
+    private final AppProperties appProperties;
+
     @Bean
     public WebMvcConfigurer corsConfigurer() {
         return new WebMvcConfigurer() {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
-                registry.addMapping(ApiConstants.API_PREFIX + "/**")
-                        .allowedOriginPatterns("http://localhost:3000", "http://localhost:3001")
-                    .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
-                    .allowedHeaders("Authorization", "Content-Type", "Accept", "Origin", "X-Requested-With", "If-Match", "Cache-Control")
-                    .exposedHeaders("Authorization", "Content-Type", "X-Total-Count", "X-Total-Pages", "ETag", "Cache-Control")
-                    .allowCredentials(true);
+                AppProperties.Cors cors = appProperties.getCors();
+                if (!cors.isEnabled()) {
+                    return;
+                }
+
+                registry.addMapping("/**")
+                        .allowedOriginPatterns(cors.getAllowedOrigins().split(","))
+                        .allowedMethods(cors.getAllowedMethods().split(","))
+                        .allowedHeaders(cors.getAllowedHeaders().split(","))
+                        .exposedHeaders(cors.getExposedHeaders().split(","))
+                        .allowCredentials(cors.isAllowCredentials())
+                        .maxAge(cors.getMaxAge());
             }
         };
     }

@@ -7,7 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
+import com.eshop.app.security.PrincipalDetails;
 import org.springframework.web.bind.annotation.*;
 import com.eshop.app.constants.ApiConstants;
 import java.util.List;
@@ -16,7 +16,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import com.eshop.app.dto.response.CategoryResponse;
 
-@Tag(name = "Seller Category", description = "Seller category APIs")
+@Tag(name = "Seller Categories", description = "Seller category requests - Submit and track category creation requests")
 @RestController
 @RequestMapping(ApiConstants.Endpoints.SELLER_CATEGORY)
 @RequiredArgsConstructor
@@ -38,8 +38,8 @@ public class SellerCategoryController {
     )
     public ResponseEntity<?> requestNewCategory(
             @RequestBody CategoryRequest dto,
-            @AuthenticationPrincipal UserDetails userDetails) {
-        Long sellerId = getCurrentUserId(userDetails);
+            @AuthenticationPrincipal PrincipalDetails principal) {
+        Long sellerId = principal.getId();
         var request = requestService.createRequest(dto, sellerId);
         return ResponseEntity.status(HttpStatus.CREATED)
             .body(new com.eshop.app.dto.response.CategoryRequestResponse(request));
@@ -48,13 +48,8 @@ public class SellerCategoryController {
     @GetMapping("/my-requests")
     @Operation(summary = "Get my category requests", description = "Get category requests submitted by current seller", security = @SecurityRequirement(name = "Bearer Authentication"))
     public ResponseEntity<?> getMyRequests(
-            @AuthenticationPrincipal UserDetails userDetails) {
-        Long sellerId = getCurrentUserId(userDetails);
+            @AuthenticationPrincipal PrincipalDetails principal) {
+        Long sellerId = principal.getId();
         return ResponseEntity.ok(requestService.getSellerRequests(sellerId));
-    }
-
-    private Long getCurrentUserId(UserDetails userDetails) {
-        // Replace with your actual UserDetails implementation
-        return ((com.eshop.app.security.UserDetailsImpl) userDetails).getId();
     }
 }

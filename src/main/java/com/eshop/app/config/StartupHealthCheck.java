@@ -18,6 +18,9 @@ import java.sql.SQLException;
 public class StartupHealthCheck implements ApplicationListener<ApplicationReadyEvent> {
 
     @Autowired
+    private com.eshop.app.config.properties.AppProperties appProperties;
+
+    @Autowired
     private DataSource dataSource;
 
     @Value("${server.port}")
@@ -25,12 +28,12 @@ public class StartupHealthCheck implements ApplicationListener<ApplicationReadyE
 
     @Override
     public void onApplicationEvent(ApplicationReadyEvent event) {
+        String backendUrl = appProperties.getBackendUrl();
         try (Connection conn = dataSource.getConnection()) {
             log.info("[OK] Database connection verified");
             log.info("[OK] Application ready to serve requests");
-            String baseUrl = "http://localhost:" + serverPort;
-            log.info("[DOCS] Swagger UI: {}/swagger-ui/index.html", baseUrl);
-            log.info("[MON]  Actuator: {}/actuator/health", baseUrl);
+            log.info("[DOCS] Swagger UI: {}/swagger-ui/index.html", backendUrl);
+            log.info("[MON]  Actuator: {}/actuator/health", backendUrl);
         } catch (SQLException e) {
             log.error("[FAIL] Database connection failed", e);
         }

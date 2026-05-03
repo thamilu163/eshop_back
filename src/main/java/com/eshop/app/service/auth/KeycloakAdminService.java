@@ -99,11 +99,15 @@ public class KeycloakAdminService {
                             })
                     )
                     .bodyToMono(Void.class)
-                    .then(Mono.just(Map.of(
-                        "message", "User created successfully",
-                        "username", request.getUsername()
-                    )))
-                    .doOnSuccess(result -> log.info("User created: {}", request.getUsername()));
+                    .then(getUserByUsername(request.getUsername()))
+                    .map(userMap -> {
+                        String userId = (String) userMap.get("id");
+                        log.info("User created and ID resolved: {} -> {}", request.getUsername(), userId);
+                        return Map.of(
+                                "message", "User created successfully",
+                                "username", request.getUsername(),
+                                "id", userId);
+                    });
         });
     }
     

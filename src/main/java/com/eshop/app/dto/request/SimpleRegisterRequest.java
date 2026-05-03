@@ -9,6 +9,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import com.fasterxml.jackson.annotation.JsonAlias;
 
 @Data
 @Builder
@@ -40,6 +41,7 @@ public class SimpleRegisterRequest {
     
     @NotBlank(message = "Phone is required")
     @Schema(description = "Phone number", example = "+1234567890")
+    @JsonAlias("mobileNumber")
     private String phone;
     
     @Schema(description = "Address", example = "123 Main St")

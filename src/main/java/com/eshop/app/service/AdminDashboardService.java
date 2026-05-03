@@ -20,7 +20,7 @@ public class AdminDashboardService {
     private final java.util.concurrent.Executor dashboardExecutor;
     private final com.eshop.app.service.analytics.AdminAggregationService adminAggregationService;
 
-    @Cacheable(value = "adminDashboard", key = "'overview'")
+    @Cacheable(value = "adminDashboard", key = "'overview'", sync = true)
     public AdminDashboardResponse getDashboard() {
         long start = System.currentTimeMillis();
         try {

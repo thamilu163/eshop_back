@@ -28,6 +28,6 @@ public class ProductSecurityService {
         if (productId == null || sellerId == null) {
             return false;
         }
-        return productRepository.existsByIdAndStoreSellerId(productId, sellerId);
+        return productRepository.existsByIdAndStoreSellerProfileUserId(productId, sellerId);
     }
 }

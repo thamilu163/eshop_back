@@ -22,7 +22,7 @@ import java.util.List;
 @ConditionalOnProperty(prefix = "spring.security.oauth2.resourceserver.jwt", name = "enabled", havingValue = "true", matchIfMissing = true)
 public class JwtAudienceValidatorConfig {
 
-    @Value("${spring.security.oauth2.resourceserver.jwt.issuer-uri:http://localhost:8080/realms/eshop}")
+    @Value("${spring.security.oauth2.resourceserver.jwt.issuer-uri}")
     private String issuerUri;
 
     @Value("${app.security.jwt.audience:eshop-backend}")

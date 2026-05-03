@@ -16,7 +16,12 @@ public interface StoreRepository extends JpaRepository<Store, Long> {
 
     Optional<Store> findByStoreName(String storeName);
 
-    Optional<Store> findBySellerId(Long sellerId);
+    Optional<Store> findBySellerProfile_UserId(Long userId);
+
+    List<Store> findAllByEmail(String email);
+
+    @Query("SELECT s FROM Store s WHERE s.sellerProfile.user.keycloakId = :keycloakId")
+    Optional<Store> findBySellerKeycloakId(@Param("keycloakId") String keycloakId);
 
     Optional<Store> findByDomain(String domain);
 

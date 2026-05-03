@@ -3,6 +3,7 @@ package com.eshop.app.service;
 import com.eshop.app.dto.response.CurrencyDTO;
 import com.eshop.app.entity.Currency;
 import com.eshop.app.repository.CurrencyRepository;
+import com.eshop.app.config.properties.AppProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.Cacheable;
@@ -13,7 +14,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -22,6 +23,7 @@ import java.util.stream.Collectors;
 public class CurrencyService {
     
     private final CurrencyRepository currencyRepository;
+    private final AppProperties appProperties;
     
     public Currency createCurrency(Currency currency) {
         if (currencyRepository.existsByCode(currency.getCode())) {
@@ -62,14 +64,14 @@ public class CurrencyService {
     public List<CurrencyDTO> getAllCurrencies() {
         return currencyRepository.findAll().stream()
             .map(this::toDTO)
-            .collect(Collectors.toList());
+            .toList();
     }
     
     @Cacheable("currencies")
     public List<CurrencyDTO> getActiveCurrencies() {
         return currencyRepository.findByActiveTrue().stream()
             .map(this::toDTO)
-            .collect(Collectors.toList());
+            .toList();
     }
     
     @Cacheable(value = "currencies", key = "#code")
@@ -83,11 +85,12 @@ public class CurrencyService {
     public CurrencyDTO getDefaultCurrencyDTO() {
         Currency currency = currencyRepository.findByIsDefaultTrue()
             .orElseGet(() -> {
-                log.warn("No default currency found, creating USD as default");
+                    String defaultCode = appProperties.getBusiness().getDefaultCurrency();
+                    log.warn("No default currency found, creating {} as default", defaultCode);
                 return createCurrency(Currency.builder()
-                    .code("USD")
-                    .name("US Dollar")
-                    .symbol("$")
+                            .code(defaultCode)
+                            .name(defaultCode + " (Default)")
+                            .symbol(defaultCode.equals("USD") ? "$" : (defaultCode.equals("INR") ? "₹" : ""))
                     .symbolPosition("LEFT")
                     .decimalPlaces(2)
                     .exchangeRate(BigDecimal.ONE)
@@ -107,11 +110,12 @@ public class CurrencyService {
     public Currency getDefaultCurrency() {
         return currencyRepository.findByIsDefaultTrue()
             .orElseGet(() -> {
-                log.warn("No default currency found, creating USD as default");
+                    String defaultCode = appProperties.getBusiness().getDefaultCurrency();
+                    log.warn("No default currency found, creating {} as default", defaultCode);
                 return createCurrency(Currency.builder()
-                    .code("USD")
-                    .name("US Dollar")
-                    .symbol("$")
+                            .code(defaultCode)
+                            .name(defaultCode + " (Default)")
+                            .symbol(defaultCode.equals("USD") ? "$" : (defaultCode.equals("INR") ? "₹" : ""))
                     .symbolPosition("LEFT")
                     .decimalPlaces(2)
                     .exchangeRate(BigDecimal.ONE)

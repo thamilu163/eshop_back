@@ -83,7 +83,7 @@ public class ProductController extends BaseController {
     // ==================== CREATE OPERATIONS ====================
     
     @PostMapping
-    @PreAuthorize("hasAnyRole('SELLER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole(@appProperties.security.roles.seller, @appProperties.security.roles.admin)")
     @Operation(
         summary = "Create new product",
         description = """
@@ -168,7 +168,7 @@ public class ProductController extends BaseController {
     }
     
     @PostMapping("/batch")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole(@appProperties.security.roles.admin)")
     @Operation(
         summary = "Batch create products",
         description = "Create multiple products in a single request (max 100 products). Business logic handled in service layer with comprehensive error tracking.",
@@ -279,7 +279,7 @@ public class ProductController extends BaseController {
     }
     
     @DeleteMapping("/batch")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole(@appProperties.security.roles.admin)")
     @Operation(
         summary = "Batch delete products",
         description = "Delete multiple products (max 100). Business logic in service layer with detailed error tracking.",

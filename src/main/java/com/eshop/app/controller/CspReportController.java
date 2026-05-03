@@ -127,14 +127,16 @@ public class CspReportController {
     /**
      * CSP Violation Report DTO
      * 
-     * <p>Matches the JSON structure sent by browsers:
+     * <p>
+     * Matches the JSON structure sent by browsers:
+     * 
      * <pre>
      * {
      *   "csp-report": {
-     *     "document-uri": "http://localhost:8082/",
+     *     "document-uri": "https://app.example.com/",
      *     "violated-directive": "script-src 'self'",
      *     "blocked-uri": "https://evil.com/malicious.js",
-     *     "source-file": "http://localhost:8082/app.js",
+     *     "source-file": "https://app.example.com/app.js",
      *     "line-number": 42
      *   }
      * }

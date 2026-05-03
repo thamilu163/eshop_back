@@ -14,7 +14,7 @@ import org.springframework.validation.annotation.Validated;
  */
 @ConfigurationProperties(prefix = "keycloak")
 @Validated
-public final class KeycloakConfig {
+public class KeycloakConfig {
 
     private static final Logger log = LoggerFactory.getLogger(KeycloakConfig.class);
 

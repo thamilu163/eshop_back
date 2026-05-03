@@ -2,7 +2,7 @@ package com.eshop.app.config;
 
 import com.eshop.app.repository.OrderRepository;
 import com.eshop.app.repository.StoreRepository;
-import com.eshop.app.security.UserDetailsImpl;
+import com.eshop.app.security.PrincipalDetails;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
@@ -172,7 +172,8 @@ public class UserSecurityExpression {
         return getCurrentUserId()
                 .map(userId -> {
                     boolean owns = storeRepository.findById(storeId)
-                            .map(s -> s.getSeller() != null && Objects.equals(s.getSeller().getId(), userId))
+                            .map(s -> s.getSellerProfile() != null && s.getSellerProfile().getUser() != null
+                                    && Objects.equals(s.getSellerProfile().getUser().getId(), userId))
                             .orElse(false);
                     log.debug("ownsStore({}) for user {} = {}", storeId, userId, owns);
                     return owns;
@@ -229,8 +230,11 @@ public class UserSecurityExpression {
                 .map(o -> o.getItems().stream()
                     .anyMatch(i -> i.getProduct() != null
                         && i.getProduct().getStore() != null
-                        && i.getProduct().getStore().getSeller() != null
-                        && Objects.equals(i.getProduct().getStore().getSeller().getId(), userId)))
+                                        && i.getProduct().getStore().getSellerProfile() != null
+                                        && i.getProduct().getStore().getSellerProfile().getUser() != null
+                                        && Objects.equals(
+                                                i.getProduct().getStore().getSellerProfile().getUser().getId(),
+                                                userId)))
                 .orElse(false))
             .orElse(false);
     }
@@ -243,8 +247,8 @@ public class UserSecurityExpression {
      * @return Optional containing user ID, or empty if not authenticated
      */
     public Optional<Long> getCurrentUserId() {
-        return getCurrentUserDetails()
-                .map(UserDetailsImpl::getId);
+        return getCurrentPrincipal()
+                .map(PrincipalDetails::getId);
     }
 
     /**
@@ -253,8 +257,8 @@ public class UserSecurityExpression {
      * @return Optional containing username, or empty if not authenticated
      */
     public Optional<String> getCurrentUsername() {
-        return getCurrentUserDetails()
-                .map(UserDetailsImpl::getUsername);
+        return getCurrentPrincipal()
+                .map(PrincipalDetails::getUsername);
     }
 
     /**
@@ -263,13 +267,10 @@ public class UserSecurityExpression {
      * @return Set of authorities, empty set if not authenticated
      */
     public Set<GrantedAuthority> getCurrentAuthorities() {
-        return getCurrentUserDetails()
-                .map(ud -> {
-                    Set<GrantedAuthority> set = new HashSet<>();
-                    ud.getAuthorities().forEach(set::add);
-                    return set;
-                })
-                .orElseGet(Collections::emptySet);
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null)
+            return Collections.emptySet();
+        return new HashSet<>(authentication.getAuthorities());
     }
 
     /**
@@ -277,7 +278,7 @@ public class UserSecurityExpression {
      *
      * @return Optional containing UserDetailsImpl, or empty if not available
      */
-    private Optional<UserDetailsImpl> getCurrentUserDetails() {
+    private Optional<PrincipalDetails> getCurrentPrincipal() {
         try {
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
@@ -298,8 +299,8 @@ public class UserSecurityExpression {
 
             Object principal = authentication.getPrincipal();
 
-            if (principal instanceof UserDetailsImpl userDetails) {
-                return Optional.of(userDetails);
+            if (principal instanceof PrincipalDetails pd) {
+                return Optional.of(pd);
             }
 
             if (principal instanceof Jwt jwt) {
@@ -324,18 +325,23 @@ public class UserSecurityExpression {
     /**
      * Extracts user details from a JWT token.
      */
-    private Optional<UserDetailsImpl> extractFromJwt(Jwt jwt) {
+    private Optional<PrincipalDetails> extractFromJwt(Jwt jwt) {
         try {
             String subject = jwt.getSubject();
-            Long userId = Long.parseLong(subject);
-
-            // Build minimal UserDetailsImpl from JWT claims
-            return Optional.of(UserDetailsImpl.builder()
-                    .id(userId)
+            
+            // Note: In Keycloak, subject is a UUID string, not a numeric ID.
+            // Numeric IDs are local database IDs.
+            // PrincipalDetails.id should be resolved from the database using findUserIdByKeycloakId.
+            // If it's not available yet, we leave it null or -1L.
+            
+            return Optional.of(PrincipalDetails.builder()
+                    .id(null) // ID resolution should happen in a filter or service
                     .username(jwt.getClaimAsString("preferred_username"))
+                    .email(jwt.getClaimAsString("email"))
+                    .keycloakId(subject)
                     .build());
-        } catch (NumberFormatException e) {
-            log.warn("Could not parse user ID from JWT subject: {}", jwt.getSubject());
+        } catch (Exception e) {
+            log.warn("Could not extract principal from JWT: {}", e.getMessage());
             return Optional.empty();
         }
     }
@@ -346,7 +352,7 @@ public class UserSecurityExpression {
      * @return true if a real user is authenticated
      */
     public boolean isAuthenticated() {
-        return getCurrentUserDetails().isPresent();
+        return getCurrentPrincipal().isPresent();
     }
 
     /**

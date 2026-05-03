@@ -93,7 +93,7 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
      * Check if product exists for given ID and seller ID (ownership validation).
      * Used by ProductSecurityService for RBAC.
      */
-    boolean existsByIdAndStoreSellerId(Long productId, Long sellerId);
+    boolean existsByIdAndStoreSellerProfileUserId(Long productId, Long sellerId);
     
     /**
      * Find product with pessimistic write lock (for stock updates).
@@ -191,10 +191,13 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
     Page<Product> findByStoreCountry(@Param("country") String country, Pageable pageable);
     
     // Dashboard Analytics Methods
-       long countByStoreSellerId(Long sellerId);
-       long countByStoreSellerIdAndStatus(Long sellerId, com.eshop.app.entity.enums.ProductStatus status);
-       long countByStoreSellerIdAndStockQuantity(Long sellerId, Integer stockQuantity);
-       long countByStoreSellerIdAndStockQuantityLessThan(Long sellerId, Integer stockQuantity);
+    long countByStoreSellerProfileUserId(Long sellerId);
+
+    long countByStoreSellerProfileUserIdAndStatus(Long sellerId, com.eshop.app.entity.enums.ProductStatus status);
+
+    long countByStoreSellerProfileUserIdAndStockQuantity(Long sellerId, Integer stockQuantity);
+
+    long countByStoreSellerProfileUserIdAndStockQuantityLessThan(Long sellerId, Integer stockQuantity);
        long countByStatus(com.eshop.app.entity.enums.ProductStatus status);
        long countByFeatured(Boolean featured);
        long countByStockQuantity(int stockQuantity);
@@ -216,37 +219,40 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
        BigDecimal sumInventoryValue();
 
        long countByCreatedAtAfter(LocalDateTime dt);
-       long countByUpdatedAtAfter(LocalDateTime dt);
-       long countByStoreSellerIdAndFeaturedTrue(Long sellerId);
 
-       @Query("SELECT COALESCE(SUM(p.stockQuantity),0) FROM Product p WHERE p.store.seller.id = :sellerId")
+       long countByUpdatedAtAfter(LocalDateTime dt);
+
+       long countByStoreSellerProfileUserIdAndFeaturedTrue(Long sellerId);
+
+       @Query("SELECT COALESCE(SUM(p.stockQuantity),0) FROM Product p WHERE p.store.sellerProfile.user.id = :sellerId")
        Long sumStockQuantityBySellerId(@Param("sellerId") Long sellerId);
 
-       @Query("SELECT COALESCE(SUM(p.price * p.stockQuantity),0) FROM Product p WHERE p.store.seller.id = :sellerId")
+       @Query("SELECT COALESCE(SUM(p.price * p.stockQuantity),0) FROM Product p WHERE p.store.sellerProfile.user.id = :sellerId")
        BigDecimal sumInventoryValueBySellerId(@Param("sellerId") Long sellerId);
 
-       @Query("SELECT COALESCE(AVG(p.price),0) FROM Product p WHERE p.store.seller.id = :sellerId")
+       @Query("SELECT COALESCE(AVG(p.price),0) FROM Product p WHERE p.store.sellerProfile.user.id = :sellerId")
        BigDecimal avgPriceBySellerId(@Param("sellerId") Long sellerId);
 
-       @Query("SELECT COALESCE(MAX(p.price),0) FROM Product p WHERE p.store.seller.id = :sellerId")
+       @Query("SELECT COALESCE(MAX(p.price),0) FROM Product p WHERE p.store.sellerProfile.user.id = :sellerId")
        BigDecimal maxPriceBySellerId(@Param("sellerId") Long sellerId);
 
-       @Query("SELECT COALESCE(MIN(p.price),0) FROM Product p WHERE p.store.seller.id = :sellerId")
+       @Query("SELECT COALESCE(MIN(p.price),0) FROM Product p WHERE p.store.sellerProfile.user.id = :sellerId")
        BigDecimal minPriceBySellerId(@Param("sellerId") Long sellerId);
 
-    long countByStoreSellerIdAndCreatedAtAfter(Long sellerId, LocalDateTime dt);
-    long countByStoreSellerIdAndUpdatedAtAfter(Long sellerId, LocalDateTime dt);
+    long countByStoreSellerProfileUserIdAndCreatedAtAfter(Long sellerId, LocalDateTime dt);
+
+    long countByStoreSellerProfileUserIdAndUpdatedAtAfter(Long sellerId, LocalDateTime dt);
  
     @Query("SELECT c.name, COUNT(oi.id) FROM OrderItem oi JOIN oi.product p JOIN p.category c WHERE oi.order.customer.id = :customerId GROUP BY c.name ORDER BY COUNT(oi.id) DESC")
     java.util.List<Object[]> findFavoriteCategoryByCustomerId(@Param("customerId") Long customerId);
  
-    @Query("SELECT p FROM Product p LEFT JOIN FETCH p.category LEFT JOIN FETCH p.brand LEFT JOIN FETCH p.store s LEFT JOIN FETCH s.seller ORDER BY p.createdAt DESC")
+    @Query("SELECT p FROM Product p LEFT JOIN FETCH p.category LEFT JOIN FETCH p.brand LEFT JOIN FETCH p.store s LEFT JOIN FETCH s.sellerProfile sp LEFT JOIN FETCH sp.user ORDER BY p.createdAt DESC")
     java.util.List<Product> findTopSellingProducts(Pageable pageable);
  
-    @Query("SELECT p FROM Product p LEFT JOIN FETCH p.category LEFT JOIN FETCH p.brand LEFT JOIN FETCH p.store s LEFT JOIN FETCH s.seller WHERE s.seller.id = :sellerId ORDER BY p.createdAt DESC")
+    @Query("SELECT p FROM Product p LEFT JOIN FETCH p.category LEFT JOIN FETCH p.brand LEFT JOIN FETCH p.store s LEFT JOIN FETCH s.sellerProfile sp LEFT JOIN FETCH sp.user WHERE sp.user.id = :sellerId ORDER BY p.createdAt DESC")
     java.util.List<Product> findTopSellingProductsBySellerId(@Param("sellerId") Long sellerId, Pageable pageable);
  
-    java.util.List<Product> findByStoreSellerId(Long sellerId);
+    java.util.List<Product> findByStoreSellerProfileUserId(Long sellerId);
 
        // Brand related stats used by BrandServiceImpl
        long countByBrandId(Long brandId);

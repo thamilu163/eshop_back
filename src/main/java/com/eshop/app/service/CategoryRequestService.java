@@ -2,6 +2,7 @@ package com.eshop.app.service;
 
 import com.eshop.app.dto.response.CategoryRequestResponse;
 import com.eshop.app.dto.request.ReviewRequest;
+import com.eshop.app.entity.Category;
 import com.eshop.app.entity.CategoryRequest;
 import com.eshop.app.entity.RequestStatus;
 import com.eshop.app.entity.User;
@@ -14,7 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -46,14 +47,14 @@ public class CategoryRequestService {
         return requestRepository.findBySellerId(sellerId)
             .stream()
             .map(CategoryRequestResponse::new)
-            .collect(Collectors.toList());
+            .toList();
     }
 
     public List<CategoryRequestResponse> getPendingRequests() {
         return requestRepository.findByStatus(RequestStatus.PENDING)
             .stream()
             .map(CategoryRequestResponse::new)
-            .collect(Collectors.toList());
+            .toList();
     }
 
     @Transactional
@@ -68,7 +69,7 @@ public class CategoryRequestService {
         boolean approved = dto.getApproved();
         if (approved) {
             // Create the category
-            com.eshop.app.entity.Category category = new com.eshop.app.entity.Category();
+            Category category = new Category();
             category.setName(request.getCategoryName());
             category.setDescription(request.getDescription());
             categoryRepository.save(category);

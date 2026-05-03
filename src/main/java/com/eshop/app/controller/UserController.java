@@ -3,7 +3,7 @@ package com.eshop.app.controller;
 import com.eshop.app.dto.request.*;
 import com.eshop.app.dto.response.*;
 import com.eshop.app.exception.BusinessException;
-import com.eshop.app.security.UserDetailsImpl;
+import com.eshop.app.security.PrincipalDetails;
 import com.eshop.app.service.UserService;
 import com.eshop.app.service.UserAuditService;
 import com.eshop.app.constants.ApiConstants;
@@ -52,7 +52,7 @@ import java.util.concurrent.TimeUnit;
 public class UserController {
     
     private static final Set<String> ALLOWED_SORT_FIELDS = 
-        Set.of("id", "username", "email", "createdAt", "firstName", "lastName", "role");
+            Set.of("id", "createdAt", "firstName", "lastName", "role");
     private static final int MAX_PAGE_SIZE = 100;
 
     private final UserService userService;
@@ -65,11 +65,11 @@ public class UserController {
     @Timed(value = "user.me.get", description = "Time to get current user")
     @Operation(summary = "Get current user profile", description = "Retrieve the authenticated user's profile")
     public ResponseEntity<ApiResponse<UserResponse>> getCurrentUser(
-            @AuthenticationPrincipal UserDetailsImpl userDetails) {
+            @AuthenticationPrincipal PrincipalDetails principalDetails) {
         
-        log.debug("User {} fetching own profile", userDetails.getId());
+        log.debug("User {} fetching own profile", principalDetails.getId());
         
-        UserResponse response = userService.getUserById(userDetails.getId());
+        UserResponse response = userService.getUserById(principalDetails.getId());
         
         return ResponseEntity.ok()
             .cacheControl(CacheControl.maxAge(30, TimeUnit.SECONDS).cachePrivate())
@@ -81,13 +81,13 @@ public class UserController {
     @Timed(value = "user.me.update", description = "Time to update current user")
     @Operation(summary = "Update current user profile")
     public ResponseEntity<ApiResponse<UserResponse>> updateCurrentUser(
-            @AuthenticationPrincipal UserDetailsImpl userDetails,
+            @AuthenticationPrincipal PrincipalDetails principalDetails,
             @Valid @RequestBody UserSelfUpdateRequest request) {
         
-        log.info("User {} updating own profile", userDetails.getId());
+        log.info("User {} updating own profile", principalDetails.getId());
         
-        UserResponse response = userService.updateSelf(userDetails.getId(), request);
-        auditService.logUserAction(userDetails.getId(), userDetails.getId(), UserAction.SELF_UPDATE);
+        UserResponse response = userService.updateSelf(principalDetails.getId(), request);
+        auditService.logUserAction(principalDetails.getId(), principalDetails.getId(), UserAction.SELF_UPDATE);
         
         return ResponseEntity.ok(ApiResponse.success("Profile updated successfully", response));
     }
@@ -97,7 +97,7 @@ public class UserController {
     // ==================== USER CRUD ENDPOINTS ====================
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or @userSecurity.isCurrentUser(#id)")
+    @PreAuthorize("hasRole(@appProperties.security.roles.admin) or @userSecurity.isCurrentUser(#id)")
     @Timed(value = "user.get", description = "Time to get user by ID")
     @Operation(summary = "Get user by ID", description = "Users can view own profile, admins can view any")
     public ResponseEntity<ApiResponse<UserResponse>> getUserById(
@@ -126,7 +126,7 @@ public class UserController {
     public ResponseEntity<ApiResponse<UserResponse>> updateUser(
             @PathVariable @Positive Long id,
             @Valid @RequestBody UserUpdateRequest request,
-            @AuthenticationPrincipal UserDetailsImpl currentUser) {
+            @AuthenticationPrincipal PrincipalDetails currentUser) {
         
         log.info("User {} updating user {}", currentUser.getId(), id);
         
@@ -137,14 +137,14 @@ public class UserController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole(@appProperties.security.roles.admin)")
     @RateLimiter(name = "adminOperations")
     @Timed(value = "user.delete", description = "Time to delete user")
     @Operation(summary = "Delete user (Admin only)")
     public ResponseEntity<ApiResponse<Void>> deleteUser(
             @PathVariable @Positive Long id,
             @RequestParam(defaultValue = "false") boolean hardDelete,
-            @AuthenticationPrincipal UserDetailsImpl currentUser) {
+            @AuthenticationPrincipal PrincipalDetails currentUser) {
         
         // Prevent self-deletion
         if (id.equals(currentUser.getId())) {
@@ -185,9 +185,7 @@ public class UserController {
             .orElse(Sort.Direction.ASC);
         Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortBy));
         
-        PageResponse<UserResponse> response = active != null 
-            ? userService.getUsersByActiveStatus(active, pageable)
-            : userService.getAllUsers(pageable);
+        PageResponse<UserResponse> response = userService.getAllUsers(pageable);
         
         return ResponseEntity.ok()
             .cacheControl(CacheControl.maxAge(10, TimeUnit.SECONDS).cachePrivate())
@@ -239,7 +237,7 @@ public class UserController {
     @Operation(summary = "Activate user account (Admin only)")
     public ResponseEntity<ApiResponse<UserResponse>> activateUser(
             @PathVariable @Positive Long id,
-            @AuthenticationPrincipal UserDetailsImpl currentUser) {
+            @AuthenticationPrincipal PrincipalDetails currentUser) {
         
         log.info("Admin {} activating user {}", currentUser.getId(), id);
         
@@ -255,7 +253,7 @@ public class UserController {
     @Operation(summary = "Deactivate user account (Admin only)")
     public ResponseEntity<ApiResponse<UserResponse>> deactivateUser(
             @PathVariable @Positive Long id,
-            @AuthenticationPrincipal UserDetailsImpl currentUser) {
+            @AuthenticationPrincipal PrincipalDetails currentUser) {
         
         // Prevent self-deactivation
         if (id.equals(currentUser.getId())) {
@@ -278,7 +276,7 @@ public class UserController {
     public ResponseEntity<ApiResponse<UserResponse>> changeUserRole(
             @PathVariable @Positive Long id,
             @RequestBody @Valid RoleChangeRequest request,
-            @AuthenticationPrincipal UserDetailsImpl currentUser) {
+            @AuthenticationPrincipal PrincipalDetails currentUser) {
         
         // Prevent changing own role
         if (id.equals(currentUser.getId())) {
@@ -303,7 +301,7 @@ public class UserController {
     public ResponseEntity<ApiResponse<BulkOperationResult>> bulkActivate(
             @RequestBody @Size(min = 1, max = 100, message = "Must provide 1-100 user IDs") 
             List<@Positive Long> userIds,
-            @AuthenticationPrincipal UserDetailsImpl currentUser) {
+            @AuthenticationPrincipal PrincipalDetails currentUser) {
         
         log.info("Admin {} bulk activating {} users", currentUser.getId(), userIds.size());
         
@@ -319,7 +317,7 @@ public class UserController {
     @Operation(summary = "Bulk deactivate users (Admin only)")
     public ResponseEntity<ApiResponse<BulkOperationResult>> bulkDeactivate(
             @RequestBody @Size(min = 1, max = 100) List<@Positive Long> userIds,
-            @AuthenticationPrincipal UserDetailsImpl currentUser) {
+            @AuthenticationPrincipal PrincipalDetails currentUser) {
         
         // Prevent self-deactivation
         if (userIds.contains(currentUser.getId())) {
@@ -344,7 +342,7 @@ public class UserController {
             @RequestParam(defaultValue = "CSV") ExportFormat format,
             @RequestParam(required = false) UserRole role,
             @RequestParam(required = false) Boolean active,
-            @AuthenticationPrincipal UserDetailsImpl currentUser) {
+            @AuthenticationPrincipal PrincipalDetails currentUser) {
         
         log.info("Admin {} exporting users (format={}, role={}, active={})", 
             currentUser.getId(), format, role, active);

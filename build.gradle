@@ -1,6 +1,6 @@
 plugins {
 	id 'java'
-	id 'org.springframework.boot' version '4.0.1'
+	id 'org.springframework.boot' version '4.0.2'
 	id 'io.spring.dependency-management' version '1.1.7'
 }
 
@@ -190,6 +190,42 @@ configurations.all {
 
 tasks.named('test') {
 	useJUnitPlatform()
+}
+
+// ≡ƒôƒ Load Environment Variables from .env for bootRun and test
+def loadEnvVariables(task) {
+    if (file(".env").exists()) {
+        file(".env").readLines().each { line ->
+            if (line.trim() && !line.startsWith("#") && line.contains("=")) {
+                int index = line.indexOf("=")
+                String key = line.substring(0, index).trim()
+                String value = ""
+                if (index < line.length() - 1) {
+                    value = line.substring(index + 1).trim()
+                }
+                
+                // Remove quotes if present
+                if (value.startsWith("\"") && value.endsWith("\"")) {
+                    value = value.substring(1, value.length() - 1)
+                } else if (value.startsWith("'") && value.endsWith("'")) {
+                    value = value.substring(1, value.length() - 1)
+                }
+                
+                task.systemProperty key, value
+                task.environment key, value
+            }
+        }
+    }
+}
+
+tasks.named('bootRun').configure {
+    loadEnvVariables(it)
+    println "Γ£à Loaded environment variables from .env for bootRun"
+}
+
+tasks.named('test').configure {
+    loadEnvVariables(it)
+    // println "Γ£à Loaded environment variables from .env for test"
 }
 
 // Prevent BootJar failure on duplicate META-INF entries (e.g. spring-configuration-metadata.json)

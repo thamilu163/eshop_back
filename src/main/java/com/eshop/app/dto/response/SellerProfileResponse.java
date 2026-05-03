@@ -1,51 +1,92 @@
 package com.eshop.app.dto.response;
 
-import com.eshop.app.entity.SellerProfile;
-
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Set;
 
 import com.eshop.app.enums.SellerIdentityType;
 import com.eshop.app.enums.SellerBusinessType;
-import java.util.Set;
+import com.eshop.app.enums.SellerStatus;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class SellerProfileResponse {
+
+    // ─── Core IDs ───────────────────────────────────────────────
     private Long id;
     private Long userId;
-    private SellerIdentityType identityType;
-    private Set<SellerBusinessType> businessTypes;
-    private Boolean isOwnProduce;
-    private String displayName;
-    private String businessName;
+
+    // ─── Personal Info (from UserProfile via user_id → user → user_profile) ──
+    /** First name stored in user_profiles.first_name */
+    private String firstName;
+    /** Last name stored in user_profiles.last_name */
+    private String lastName;
+    private String profileImageUrl;
+    private String gender;
+    private LocalDate dateOfBirth;
+    private String preferredLanguage;
+
+    // ─── Auth Info (from users table) ───────────────────────────
     private String email;
-    private String phone;
-    private String taxId;
+    /** Personal phone stored in user_profiles.phone (for 2FA/security) */
+    private String personalMobileNumber;
+
+    /** Business/Support phone stored in seller_profiles.businessMobileNumber (shown to customers) */
+    private String businessMobileNumber;
+
+    // ─── Seller / Business Info (from seller_profiles) ──────────
+    private SellerIdentityType identityType;
+    private String identityTypeLabel;
+    private Set<SellerBusinessType> businessTypes;
+    private String shopName;
+    private String businessName;
     private String description;
-    private SellerProfile.SellerStatus status;
+    private String addressLine1;
+    private String addressLine2;
+    private String city;
+    private String district;
+    private String state;
+    private String pincode;
+    private String country;
+    
+    // Store / Warehouse Address
+    private String storeAddressLine1;
+    private String storeAddressLine2;
+    private String storeCity;
+    private String storeDistrict;
+    private String storeState;
+    private String storePincode;
+    private String storeCountry;
+    
+    private String googleMapsUrl;
+    private SellerStatus status;
+
+    // ─── Timestamps ─────────────────────────────────────────────
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
-    
-    // Legacy fields
-    private String aadhar;
-    private String pan;
-    private String gstin;
-    private String businessType;
+
+    // ─── Store info ─────────────────────────────────────────────
     private String storeName;
-    private String farmLocationVillage;
-    private String landArea;
 
-    private String warehouseLocation;
-    private Boolean bulkPricingAgreement;
+    // ─── Nested sub-entity responses ────────────────────────────
+    private SellerKYCResponse kyc;
+    private SellerFarmerDetailsResponse farmerDetails;
+    private SellerBusinessDetailsResponse businessDetails;
+    private SellerWholesaleConfigResponse wholesaleConfig;
+    private List<SellerBankAccountResponse> bankAccounts;
+    private List<SellerDocumentResponse> documents;
 
-    // KYC Fields
-    private String authorizedSignatory;
-    private String registrationProof;
+    // ─── Audit ──────────────────────────────────────────────────
+    private String rejectionReason;
+    private String approvedBy;
+    private LocalDateTime approvedAt;
 }
+

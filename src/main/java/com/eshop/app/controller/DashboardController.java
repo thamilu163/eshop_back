@@ -92,8 +92,7 @@ import java.util.concurrent.TimeUnit;
 @Validated
 @Slf4j
 @Tag(
-    name = "Dashboard API (V1)",
-    description = "Enterprise-grade dashboard endpoints with role-based access, caching, and analytics"
+        name = "Dashboards", description = "Role-based dashboard endpoints with analytics and statistics (Admin, Seller, Customer, Delivery Agent)"
 )
 public class DashboardController {
     
@@ -134,7 +133,7 @@ public class DashboardController {
      * @return comprehensive admin dashboard data
      */
     @GetMapping("/admin")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole(@appProperties.security.roles.admin)")
     @RateLimiter(name = "dashboard")
     @Bulkhead(name = "dashboard")
     @Operation(
@@ -148,17 +147,12 @@ public class DashboardController {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Access denied - Admin role required")
     })
     public ResponseEntity<com.eshop.app.dto.response.ApiResponse<AdminDashboardResponse>> getAdminDashboard(
-            org.springframework.security.core.Authentication authentication) {
-        org.springframework.security.oauth2.jwt.Jwt jwt = null;
-        if (authentication != null) {
-            Object cred = authentication.getCredentials();
-            if (cred instanceof org.springframework.security.oauth2.jwt.Jwt) jwt = (org.springframework.security.oauth2.jwt.Jwt) cred;
-            else if (authentication.getPrincipal() instanceof org.springframework.security.oauth2.jwt.Jwt) jwt = (org.springframework.security.oauth2.jwt.Jwt) authentication.getPrincipal();
-        }
-        String username = jwt != null ? jwt.getClaimAsString("preferred_username") : "anonymous";
+            @AuthenticationPrincipal com.eshop.app.security.PrincipalDetails principal) {
 
-        // CRITICAL: Log authentication success with roles
-        log.info("✅ ADMIN authenticated | user={} | roles={}", username, jwt != null ? jwt.getClaimAsStringList("roles") : java.util.List.of());
+        String username = principal != null ? principal.getUsername() : "anonymous";
+
+        // CRITICAL: Log authentication success
+        log.info("✅ ADMIN authenticated | user={}", username);
 
         log.debug("Admin dashboard requested by user: {}", username);
         long startTime = System.currentTimeMillis();
@@ -239,16 +233,9 @@ public class DashboardController {
             @Max(value = 365, message = "Days cannot exceed 365")
             int days,
             @Parameter(hidden = true) org.springframework.data.domain.Pageable pageable,
-            org.springframework.security.core.Authentication authentication) {
+            @AuthenticationPrincipal com.eshop.app.security.PrincipalDetails principal) {
 
-        org.springframework.security.oauth2.jwt.Jwt jwt = null;
-        if (authentication != null) {
-            Object cred = authentication.getCredentials();
-            if (cred instanceof org.springframework.security.oauth2.jwt.Jwt) jwt = (org.springframework.security.oauth2.jwt.Jwt) cred;
-            else if (authentication.getPrincipal() instanceof org.springframework.security.oauth2.jwt.Jwt) jwt = (org.springframework.security.oauth2.jwt.Jwt) authentication.getPrincipal();
-        }
-
-        String username = jwt != null ? jwt.getClaimAsString("preferred_username") : "anonymous";
+        String username = principal != null ? principal.getUsername() : "anonymous";
         log.info("Daily sales analytics requested for {} days by user: {} (page: {}, size: {})", days, username, pageable.getPageNumber(), pageable.getPageSize());
         java.util.concurrent.CompletableFuture<java.util.List<Map<String, Object>>> dailySalesFuture = adminAnalyticsService.getDailySalesDataAsync(days);
         java.util.List<Map<String, Object>> dailySales;
@@ -277,16 +264,9 @@ public class DashboardController {
         description = "Revenue breakdown across product categories"
     )
     public ResponseEntity<ApiResponse<java.util.List<Map<String, Object>>>> getRevenueByCategory(
-            org.springframework.security.core.Authentication authentication) {
+            @AuthenticationPrincipal com.eshop.app.security.PrincipalDetails principal) {
 
-        org.springframework.security.oauth2.jwt.Jwt jwt = null;
-        if (authentication != null) {
-            Object cred = authentication.getCredentials();
-            if (cred instanceof org.springframework.security.oauth2.jwt.Jwt) jwt = (org.springframework.security.oauth2.jwt.Jwt) cred;
-            else if (authentication.getPrincipal() instanceof org.springframework.security.oauth2.jwt.Jwt) jwt = (org.springframework.security.oauth2.jwt.Jwt) authentication.getPrincipal();
-        }
-
-        String username = jwt != null ? jwt.getClaimAsString("preferred_username") : "anonymous";
+        String username = principal != null ? principal.getUsername() : "anonymous";
         log.info("Revenue by category requested by user: {}", username);
         
         java.util.List<Map<String, Object>> categoryRevenue = adminAnalyticsService.getRevenueByCategory();
@@ -321,7 +301,7 @@ public class DashboardController {
      * @return seller dashboard data
      */
     @GetMapping("/seller")
-    @PreAuthorize("hasAnyRole('SELLER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole(@appProperties.security.roles.seller, @appProperties.security.roles.admin)")
     @RateLimiter(name = "dashboard")
     @Bulkhead(name = "dashboard")
     @Operation(
@@ -335,27 +315,18 @@ public class DashboardController {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Access denied - Seller role required")
     })
     public ResponseEntity<ApiResponse<SellerDashboardResponse>> getSellerDashboard(
-            org.springframework.security.core.Authentication authentication) {
+            @AuthenticationPrincipal com.eshop.app.security.PrincipalDetails principal) {
 
-        org.springframework.security.oauth2.jwt.Jwt jwt = null;
-        if (authentication != null) {
-            Object cred = authentication.getCredentials();
-            if (cred instanceof org.springframework.security.oauth2.jwt.Jwt) jwt = (org.springframework.security.oauth2.jwt.Jwt) cred;
-            else if (authentication.getPrincipal() instanceof org.springframework.security.oauth2.jwt.Jwt) jwt = (org.springframework.security.oauth2.jwt.Jwt) authentication.getPrincipal();
-        }
+        Long sellerId = principal.getId();
+        String username = principal.getUsername();
 
-        Long sellerId = sellerService.resolveUserId(authentication);
-        String username = jwt != null ? jwt.getClaimAsString("preferred_username") : "anonymous";
+        // CRITICAL: Log authentication success
+        log.info("✅ SELLER authenticated | user={} | sellerId={}", username, sellerId);
 
-        // CRITICAL: Log authentication success with roles
-        log.info("✅ SELLER authenticated | user={} | roles={} | sellerId={}", username, jwt != null ? jwt.getClaimAsStringList("roles") : java.util.List.of(), sellerId);
-
-        // Check if seller has completed profile registration
-        if (sellerId != null && !sellerService.hasProfile(sellerId)) {
-            log.warn("Seller {} does not have a complete profile", sellerId);
-            return ResponseEntity.status(org.springframework.http.HttpStatus.PRECONDITION_REQUIRED)
-                    .body(ApiResponse.error("Please complete your seller profile registration at /api/v1/sellers/register"));
-        }
+        // Auto-create logic removed to strictly enforce registration -> approval flow
+        // if (sellerId != null) {
+        // sellerService.getOrCreateBasicProfile(sellerId);
+        // }
 
         log.debug("Seller dashboard requested for seller ID: {}", sellerId);
         java.util.concurrent.CompletableFuture<SellerDashboardResponse> sellerFuture = sellerDashboardService.getDashboardAsync(sellerId);
@@ -397,9 +368,9 @@ public class DashboardController {
         description = "Aggregated seller statistics with single-query optimization. Accessible by SELLER and ADMIN roles."
     )
     public ResponseEntity<ApiResponse<com.eshop.app.dto.analytics.SellerStatistics>> getSellerStatistics(
-            org.springframework.security.core.Authentication authentication) {
+            @AuthenticationPrincipal com.eshop.app.security.PrincipalDetails principal) {
 
-        Long sellerId = sellerService.resolveUserId(authentication);
+        Long sellerId = principal.getId();
         log.info("Seller statistics requested for seller ID: {}", sellerId);
 
         com.eshop.app.dto.analytics.SellerStatistics statistics = sellerAnalyticsService.getSellerStatistics(sellerId);
@@ -435,17 +406,10 @@ public class DashboardController {
             @RequestParam(defaultValue = "0") @Min(0) int page,
             @Parameter(description = "Page size (1-100)")
             @RequestParam(defaultValue = "10") @Min(1) @Max(100) int size,
-            org.springframework.security.core.Authentication authentication) {
+            @AuthenticationPrincipal com.eshop.app.security.PrincipalDetails principal) {
 
-        org.springframework.security.oauth2.jwt.Jwt jwt = null;
-        if (authentication != null) {
-            Object cred = authentication.getCredentials();
-            if (cred instanceof org.springframework.security.oauth2.jwt.Jwt) jwt = (org.springframework.security.oauth2.jwt.Jwt) cred;
-            else if (authentication.getPrincipal() instanceof org.springframework.security.oauth2.jwt.Jwt) jwt = (org.springframework.security.oauth2.jwt.Jwt) authentication.getPrincipal();
-        }
-
-        Long sellerId = sellerService.resolveUserId(authentication);
-        String username = jwt != null ? jwt.getClaimAsString("preferred_username") : "anonymous";
+        Long sellerId = principal.getId();
+        String username = principal.getUsername();
         org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size);
         log.info("Top selling products requested for seller: {}, page: {}, size: {}", username, page, size);
         java.util.List<Map<String, Object>> topProducts = sellerAnalyticsService.getTopSellingProducts(sellerId, size);
@@ -466,68 +430,31 @@ public class DashboardController {
      * @return customer dashboard with order history and account info
      */
     @GetMapping("/customer")
-    @PreAuthorize("hasRole('CUSTOMER')")
+    @PreAuthorize("hasRole(@appProperties.security.roles.customer)")
     @Operation(
         summary = "Get Customer Dashboard",
         description = "Customer dashboard with order history and personalized data"
     )
     public ResponseEntity<ApiResponse<CustomerDashboardResponse>> getCustomerDashboard(
-            org.springframework.security.core.Authentication authentication) {
+            @AuthenticationPrincipal com.eshop.app.security.PrincipalDetails principal,
+            @AuthenticationPrincipal Jwt jwt) {
 
-        Jwt jwt = null;
-        String username = null;
-        String email = null;
-        String firstName = null;
-        String lastName = null;
-        Boolean emailVerified = null;
-        String keycloakSub = null;
-
-        if (authentication != null) {
-            Object cred = authentication.getCredentials();
-            if (cred instanceof Jwt) jwt = (Jwt) cred;
-            else if (authentication.getPrincipal() instanceof Jwt) jwt = (Jwt) authentication.getPrincipal();
-
-            Object principal = authentication.getPrincipal();
-            if (principal != null) {
-                // Direct cast if it's our PrincipalDetails record
-                if (principal instanceof com.eshop.app.config.EnhancedSecurityConfig.PrincipalDetails pd) {
-                    username = pd.getUsername();
-                    email = pd.getEmail();
-                    log.debug("Extracted from PrincipalDetails: username={}, email={}", username, email);
-                } else {
-                    // Fallback to reflection for other principal types
-                    try {
-                        java.lang.reflect.Method getUsername = principal.getClass().getMethod("getUsername");
-                        Object u = getUsername.invoke(principal);
-                        if (u instanceof String) username = (String) u;
-                    } catch (Exception e) {
-                        log.debug("Could not extract username via reflection: {}", e.getMessage());
-                    }
-                    try {
-                        java.lang.reflect.Method getEmail = principal.getClass().getMethod("getEmail");
-                        Object e = getEmail.invoke(principal);
-                        if (e instanceof String) email = (String) e;
-                    } catch (Exception e) {
-                        log.debug("Could not extract email via reflection: {}", e.getMessage());
-                    }
-                }
-            }
-        }
-
-        if (jwt != null) {
-            keycloakSub = jwt.getSubject();
-            // Prefer JWT claims when available
-            username = username == null ? jwt.getClaimAsString("preferred_username") : username;
-            email = email == null ? jwt.getClaimAsString("email") : email;
-            firstName = jwt.getClaimAsString("given_name");
-            lastName = jwt.getClaimAsString("family_name");
-            emailVerified = jwt.getClaim("email_verified");
-        }
+        String username = principal.getUsername();
+        String email = principal.getEmail();
+        String keycloakSub = principal.getKeycloakId();
+        String firstName = jwt != null ? jwt.getClaimAsString("given_name") : null;
+        String lastName = jwt != null ? jwt.getClaimAsString("family_name") : null;
+        Boolean emailVerified = jwt != null ? jwt.getClaim("email_verified") : null;
+        String phoneNumber = jwt != null ? jwt.getClaimAsString("phone_number") : null;
 
         log.info("Customer dashboard request userId={} email={} username={}", keycloakSub, email, username);
 
-        // Resolve local customer id by username/email
-        Long customerId = customerDashboardService.findCustomerIdByUsername(username, email, firstName, lastName, emailVerified);
+        // Resolve local customer id
+        Long customerId = principal.getId();
+        if (customerId == null || customerId == -1L) {
+            customerId = customerDashboardService.findCustomerIdByUsername(username, email, firstName, lastName,
+                    emailVerified, keycloakSub, phoneNumber);
+        }
 
         CustomerDashboardResponse response = customerDashboardService.getDashboard(customerId);
 
@@ -555,23 +482,16 @@ public class DashboardController {
      * @return delivery dashboard with assigned orders
      */
     @GetMapping("/delivery-agent")
-    @PreAuthorize("hasRole('DELIVERY_AGENT')")
+    @PreAuthorize("hasRole(@appProperties.security.roles.delivery)")
     @Operation(
         summary = "Get Delivery Agent Dashboard",
         description = "Delivery agent dashboard with assigned orders and performance metrics"
     )
     public ResponseEntity<ApiResponse<DeliveryDashboardResponse>> getDeliveryAgentDashboard(
-            org.springframework.security.core.Authentication authentication) {
+            @AuthenticationPrincipal com.eshop.app.security.PrincipalDetails principal) {
 
-        org.springframework.security.oauth2.jwt.Jwt jwt = null;
-        if (authentication != null) {
-            Object cred = authentication.getCredentials();
-            if (cred instanceof org.springframework.security.oauth2.jwt.Jwt) jwt = (org.springframework.security.oauth2.jwt.Jwt) cred;
-            else if (authentication.getPrincipal() instanceof org.springframework.security.oauth2.jwt.Jwt) jwt = (org.springframework.security.oauth2.jwt.Jwt) authentication.getPrincipal();
-        }
-
-        Long agentId = jwt != null ? jwt.getClaim("user_id") : null;
-        String username = jwt != null ? jwt.getClaimAsString("preferred_username") : "anonymous";
+        Long agentId = principal.getId();
+        String username = principal.getUsername();
 
         log.info("Delivery dashboard requested for agent: {}", username);
 
@@ -602,16 +522,9 @@ public class DashboardController {
     )
     public ResponseEntity<ApiResponse<String>> clearCache(
             @PathVariable String cacheName,
-            org.springframework.security.core.Authentication authentication) {
+            @AuthenticationPrincipal com.eshop.app.security.PrincipalDetails principal) {
 
-        org.springframework.security.oauth2.jwt.Jwt jwt = null;
-        if (authentication != null) {
-            Object cred = authentication.getCredentials();
-            if (cred instanceof org.springframework.security.oauth2.jwt.Jwt) jwt = (org.springframework.security.oauth2.jwt.Jwt) cred;
-            else if (authentication.getPrincipal() instanceof org.springframework.security.oauth2.jwt.Jwt) jwt = (org.springframework.security.oauth2.jwt.Jwt) authentication.getPrincipal();
-        }
-
-        String username = jwt != null ? jwt.getClaimAsString("preferred_username") : "anonymous";
+        String username = principal.getUsername();
         log.warn("Cache clear requested by admin: {} for cache: {}", username, cacheName);
         
         if ("all".equalsIgnoreCase(cacheName)) {
@@ -644,16 +557,9 @@ public class DashboardController {
         description = "Retrieves hit/miss statistics for all dashboard caches"
     )
     public ResponseEntity<ApiResponse<Map<String, Object>>> getCacheStatistics(
-            org.springframework.security.core.Authentication authentication) {
+            @AuthenticationPrincipal com.eshop.app.security.PrincipalDetails principal) {
 
-        org.springframework.security.oauth2.jwt.Jwt jwt = null;
-        if (authentication != null) {
-            Object cred = authentication.getCredentials();
-            if (cred instanceof org.springframework.security.oauth2.jwt.Jwt) jwt = (org.springframework.security.oauth2.jwt.Jwt) cred;
-            else if (authentication.getPrincipal() instanceof org.springframework.security.oauth2.jwt.Jwt) jwt = (org.springframework.security.oauth2.jwt.Jwt) authentication.getPrincipal();
-        }
-
-        String username = jwt != null ? jwt.getClaimAsString("preferred_username") : "anonymous";
+        String username = principal.getUsername();
         log.info("Cache statistics requested by admin: {}", username);
         
         Map<String, Object> stats = new java.util.HashMap<>();

@@ -33,13 +33,19 @@ public class StoreSeeder implements Seeder<Store, SeederContext> {
     private final StoreRepository storeRepository;
     private final com.eshop.app.seed.provider.StoreDataProvider storeDataProvider;
 
+    private final com.eshop.app.repository.SellerProfileRepository sellerProfileRepository;
+
     @Override
     public List<Store> seed(SeederContext context) {
         try {
             Map<String, User> users = context.getUsers();
+            
+            // Pre-fetch all existing seller profiles to avoid N+1 queries during the loop
+            Map<Long, com.eshop.app.entity.SellerProfile> existingProfiles = sellerProfileRepository.findAll().stream()
+                    .collect(Collectors.toMap(p -> p.getUser().getId(), p -> p));
 
             List<Store> storesList = storeDataProvider.getStores().stream()
-                    .map(cfg -> buildStore(cfg, users))
+                    .map(cfg -> buildStoreWithCache(cfg, users, existingProfiles))
                     .filter(Optional::isPresent)
                     .map(Optional::get)
                     .toList();
@@ -87,7 +93,9 @@ public class StoreSeeder implements Seeder<Store, SeederContext> {
      * Build store with null-safe seller lookup.
      * Skips store if seller not found.
      */
-    private Optional<Store> buildStore(com.eshop.app.seed.model.StoreData cfg, Map<String, User> users) {
+    private Optional<Store> buildStoreWithCache(com.eshop.app.seed.model.StoreData cfg, 
+                                                Map<String, User> users,
+                                                Map<Long, com.eshop.app.entity.SellerProfile> existingProfiles) {
         User seller = users.get(cfg.sellerUsername());
 
         if (seller == null) {
@@ -96,16 +104,34 @@ public class StoreSeeder implements Seeder<Store, SeederContext> {
             return Optional.empty();
         }
 
+        com.eshop.app.entity.SellerProfile profile = existingProfiles.get(seller.getId());
+        if (profile == null) {
+            com.eshop.app.enums.SellerIdentityType identityType;
+            try {
+                identityType = com.eshop.app.enums.SellerIdentityType.valueOf(cfg.sellerType().toUpperCase());
+            } catch (Exception e) {
+                identityType = com.eshop.app.enums.SellerIdentityType.BUSINESS;
+            }
+
+            profile = com.eshop.app.entity.SellerProfile.builder()
+                    .user(seller)
+                    .businessName(cfg.storeName())
+                    .status(com.eshop.app.enums.SellerStatus.ACTIVE)
+                    .identityType(identityType)
+                    .build();
+            // We still need to save it to get an ID for the Store relationship if it's new
+            profile = sellerProfileRepository.save(profile);
+            existingProfiles.put(seller.getId(), profile);
+        }
+
         return Optional.of(Store.builder()
                 .storeName(cfg.storeName())
                 .description(cfg.description())
-                .address(cfg.address())
+                .addressLine1(cfg.address())
                 .phone(cfg.phone())
-                .email(cfg.email())
                 .logoUrl(cfg.logoUrl())
-                .seller(seller)
+                .sellerProfile(profile)
                 .active(true)
                 .build());
     }
-
 }

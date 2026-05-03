@@ -1,114 +1,105 @@
 package com.eshop.app.config.security;
 
+import com.eshop.app.config.properties.AppProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.env.Environment;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.annotation.Order;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-import jakarta.annotation.PostConstruct;
 import java.util.Arrays;
-import java.util.List;
+import java.util.Collections;
 
 /**
- * Keycloak OAuth2 Security Configuration - Enterprise Grade
- * 
+ * Keycloak OAuth2 Security Configuration - Dual Realm Support
+ *
  * <h2>Features:</h2>
  * <ul>
- *   <li>OAuth2 Resource Server with JWT validation</li>
- *   <li>Role-based access control (RBAC)</li>
- *   <li>Keycloak role mapping</li>
- *   <li>CORS configuration</li>
- *   <li>Stateless session management</li>
- *   <li>Public endpoints (Swagger, Actuator)</li>
+ * <li><b>/api/admin/**</b> -> Validated against <b>eshop-admin</b> realm</li>
+ * <li><b>/api/**</b> -> Validated against <b>eshop</b> (user) realm</li>
  * </ul>
- * 
- * <h2>Security Requirements:</h2>
- * <ul>
- *   <li>/api/admin/** - ROLE_ADMIN</li>
- *   <li>/api/seller/** - ROLE_SELLER</li>
- *   <li>/api/customer/** - ROLE_CUSTOMER</li>
- *   <li>/swagger-ui/**, /v3/api-docs/** - Public (dev only)</li>
- *   <li>/actuator/health - Public</li>
- * </ul>
- * 
- * @author EShop Team
- * @version 2.0
- * @since 2025-12-15
  */
 @Configuration
 @EnableWebSecurity
-@EnableMethodSecurity(
-    securedEnabled = true,
-    jsr250Enabled = true
-)
+@EnableMethodSecurity(securedEnabled = true, jsr250Enabled = true)
 @org.springframework.context.annotation.Profile("keycloak")
 @RequiredArgsConstructor
 @Slf4j
 public class KeycloakSecurityConfig {
-    
-    private final Environment environment;
 
-    @Value("${spring.security.oauth2.resourceserver.jwt.issuer-uri:http://localhost:8080/realms/eshop}")
-    private String issuerUri;
+    private final AppProperties appProperties;
 
-    @Value("${security.keycloak.realm}")
-    private String keycloakRealm;
-    
-    @PostConstruct
-    public void init() {
-        log.info("╔═══════════════════════════════════════════════════════════╗");
-        log.info("║  KEYCLOAK OAUTH2 SECURITY ENABLED                        ║");
-        log.info("╠═══════════════════════════════════════════════════════════╣");
-        log.info("║  Realm: {}", keycloakRealm);
-        log.info("║  Issuer: {}", issuerUri);
-        log.info("║  RBAC: Method-level security enabled                     ║");
-        log.info("║  Session: Stateless                                      ║");
-        log.info("╚═══════════════════════════════════════════════════════════╝");
+    @Value("${spring.security.oauth2.resourceserver.jwt.issuer-uri}")
+    private String userRealmIssuer;
 
-        boolean isDevProfile = environment.acceptsProfiles(org.springframework.core.env.Profiles.of("dev", "test"));
-        if ((issuerUri.contains("localhost") || issuerUri.contains(":8081")) && !isDevProfile) {
-            log.error("❌ FATAL: Dev Keycloak issuer URI '{}' detected in non-dev profile! Refusing to start.", issuerUri);
-            throw new IllegalStateException("Invalid Keycloak configuration: Dev issuer URI in non-dev profile");
-        }
-    }
-    
+    @Value("${app.security.admin.issuer-uri}")
+    private String adminRealmIssuer;
+
     /**
-     * Security Filter Chain with OAuth2 Resource Server
+     * 🔐 Chain 1: ADMIN API -> Validates with 'eshop-admin' realm
+     * Higher priority (@Order(1)) to intercept /api/admin/**
      */
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        log.info("Configuring Security Filter Chain with OAuth2 Resource Server");
-        
+    @Order(1)
+    public SecurityFilterChain adminSecurityFilterChain(HttpSecurity http) throws Exception {
+        log.info("🛡️ Configuring ADMIN Security Chain for /api/admin/** (Issuer: {})", adminRealmIssuer);
+
+        http
+                .securityMatcher(
+                        "/api/admin/**",
+                        "/api/v1/admin/**",
+                        "/api/v1/sellers/requests/**")
+                .csrf(AbstractHttpConfigurer::disable)
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(auth -> auth
+                        // Explicitly require ADMIN role for confirmation, though realm check is the
+                        // primary gate
+                        .anyRequest().hasRole("ADMIN"))
+                .oauth2ResourceServer(oauth2 -> oauth2
+                        .jwt(jwt -> jwt
+                                .decoder(adminJwtDecoder())
+                                .jwtAuthenticationConverter(jwtAuthenticationConverter())));
+
+        return http.build();
+    }
+
+    /**
+     * 🛒 Chain 2: USER API -> Validates with 'eshop' realm
+     * Handles everything else
+     */
+    @Bean
+    @Order(2)
+    public SecurityFilterChain userSecurityFilterChain(HttpSecurity http) throws Exception {
+        log.info("🛡️ Configuring USER Security Chain for /api/** (Issuer: {})", userRealmIssuer);
+
         http
             .csrf(AbstractHttpConfigurer::disable)
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-            .sessionManagement(session -> 
-                session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-            )
+                .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 // Public endpoints
                 .requestMatchers(
-                    "/swagger-ui/**",
-                    "/v3/api-docs/**",
-                    "/actuator/health",
-                    "/actuator/info",
-                    "/api/public/**",
+                                "/swagger-ui/**", "/v3/api-docs/**",
+                                "/actuator/health", "/actuator/info",
+                                "/api/public/**",
                                 "/api/auth/**"
                 ).permitAll()
-                
-                // Public read-only product/category endpoints
+
+                        // Public read-only product/category endpoints
                 .requestMatchers(org.springframework.http.HttpMethod.GET, 
                     "/api/v1/products/**",
                     "/api/v1/categories/**",
@@ -116,107 +107,115 @@ public class KeycloakSecurityConfig {
                     "/api/v1/shops/**",
                     "/api/v1/stores/**"
                 ).permitAll()
-                
-                // Admin endpoints
-                .requestMatchers("/api/admin/**", "/api/v1/admin/**", "/api/v1/dashboard/admin/**")
-                    .hasRole("ADMIN")
-                
-                // Categories write access - Admin only
-                .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/v1/categories/**")
-                    .hasRole("ADMIN")
-                .requestMatchers(org.springframework.http.HttpMethod.PUT, "/api/v1/categories/**")
-                    .hasRole("ADMIN")
-                .requestMatchers(org.springframework.http.HttpMethod.DELETE, "/api/v1/categories/**")
-                    .hasRole("ADMIN")
-                
-                // Seller endpoints
-                .requestMatchers("/api/seller/**", "/api/v1/seller/**", "/api/v1/dashboard/seller/**")
+
+                        // Seller onboarding and public checks (Authenticated but not yet SELLER)
+                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/v1/sellers/register")
+                        .authenticated()
+                        .requestMatchers("/api/v1/sellers/profile/exists", "/api/v1/sellers/profile").authenticated()
+
+                        // Seller-only endpoints
+                        .requestMatchers("/api/seller/**", "/api/v1/seller/**", "/api/v1/sellers/**",
+                                "/api/v1/dashboard/seller/**")
                     .hasRole("SELLER")
-                
-                // Customer endpoints
-                .requestMatchers("/api/customer/**", "/api/v1/dashboard/customer/**")
-                    .hasRole("CUSTOMER")
-                
+
                 // Delivery endpoints
                 .requestMatchers("/api/delivery/**", "/api/v1/dashboard/delivery-agent/**")
                     .hasRole("DELIVERY_AGENT")
-                
-                // All other requests require authentication
+
+                        // Default: Authenticated (Customer or any valid user)
                 .anyRequest().authenticated()
             )
             .oauth2ResourceServer(oauth2 -> oauth2
                 .jwt(jwt -> jwt
+                                .decoder(userJwtDecoder())
                     .jwtAuthenticationConverter(jwtAuthenticationConverter())
                 )
             );
-        
 
-        
         return http.build();
     }
-    
 
-    
     /**
-     * JWT Authentication Converter with Keycloak Role Mapping
-     * 
-     * <p>Maps Keycloak roles from realm_access.roles to Spring Security authorities</p>
-     * <p>Example: "CUSTOMER" → "ROLE_CUSTOMER"</p>
-     * 
-     * <p>FIXED: Correctly extracts roles from Keycloak's realm_access.roles structure</p>
+     * Decoder for ADMIN Realm
+     */
+    @Bean
+    public JwtDecoder adminJwtDecoder() {
+        return NimbusJwtDecoder.withIssuerLocation(adminRealmIssuer).build();
+    }
+
+    /**
+     * Decoder for USER Realm
+     */
+    @Bean
+    public JwtDecoder userJwtDecoder() {
+        return NimbusJwtDecoder.withIssuerLocation(userRealmIssuer).build();
+    }
+
+    /**
+     * Role Converter (shared for both, logic is same: realm_access.roles)
      */
     @Bean
     public JwtAuthenticationConverter jwtAuthenticationConverter() {
         JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
-        
         converter.setJwtGrantedAuthoritiesConverter(jwt -> {
             java.util.List<org.springframework.security.core.GrantedAuthority> authorities = new java.util.ArrayList<>();
-            
-            // Extract from realm_access.roles (Keycloak structure)
+            // Map realm roles
             java.util.Map<String, Object> realmAccess = jwt.getClaim("realm_access");
             if (realmAccess != null) {
                 @SuppressWarnings("unchecked")
                 java.util.List<String> roles = (java.util.List<String>) realmAccess.get("roles");
                 if (roles != null) {
-                    roles.forEach(role -> {
-                        String authority = "ROLE_" + role;
-                        authorities.add(new org.springframework.security.core.authority.SimpleGrantedAuthority(authority));
-                        log.debug("Mapped Keycloak role '{}' → Spring authority '{}'", role, authority);
-                    });
+                    roles.forEach(role -> authorities.add(
+                            new org.springframework.security.core.authority.SimpleGrantedAuthority(
+                                    "ROLE_" + role.toUpperCase())));
                 }
             }
-            
-            // TEMP: Log extracted roles for debugging
-            log.warn("JWT roles resolved = {}", authorities);
-            
+            // Also map client/resource roles if present (Keycloak may populate
+            // resource_access)
+            java.util.Map<String, Object> resourceAccess = jwt.getClaim("resource_access");
+            if (resourceAccess != null && resourceAccess instanceof java.util.Map) {
+                for (Object innerObj : ((java.util.Map<?, ?>) resourceAccess).values()) {
+                    if (innerObj instanceof java.util.Map) {
+                        Object r = ((java.util.Map<?, ?>) innerObj).get("roles");
+                        if (r instanceof java.util.List) {
+                            for (Object ro : (java.util.List<?>) r) {
+                                if (ro != null) {
+                                    authorities
+                                            .add(new org.springframework.security.core.authority.SimpleGrantedAuthority(
+                                                    "ROLE_" + ro.toString().toUpperCase()));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
             return authorities;
         });
-        
-        log.info("JWT Authentication Converter configured: realm_access.roles → ROLE_* mapping");
         return converter;
     }
-    
-    /**
-     * CORS Configuration for Frontend Integration
-     */
+
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOriginPatterns(Arrays.asList(
-            "http://localhost:3000",
-            "http://localhost:4200"
-        ));
-        configuration.setAllowedMethods(Arrays.asList(
-            "GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"
-        ));
-        configuration.setAllowedHeaders(List.of("*"));
-        configuration.setAllowCredentials(true);
-        configuration.setMaxAge(3600L);
+        CorsConfiguration config = new CorsConfiguration();
+
+        AppProperties.Cors cors = appProperties.getCors();
+
+        if (cors.getAllowedOrigins() != null && !cors.getAllowedOrigins().isBlank()) {
+            config.setAllowedOriginPatterns(Arrays.asList(cors.getAllowedOrigins().split(",")));
+        } else {
+            log.error("❌ CORS allowed origins not configured! Blocking all requests.");
+            config.setAllowedOrigins(Collections.emptyList());
+        }
+
+        config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
+        config.setAllowedHeaders(
+                Arrays.asList("Authorization", "Content-Type", "X-Requested-With", "X-Request-ID", "Accept", "Origin"));
+        config.setExposedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Request-ID"));
+        config.setAllowCredentials(true);
+        config.setMaxAge(3600L);
         
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/api/**", configuration);
-        
-        log.info("CORS configured: localhost:3000, localhost:4200");
+        source.registerCorsConfiguration("/**", config);
         return source;
     }
 }

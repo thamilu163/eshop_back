@@ -168,15 +168,6 @@ public final class ApiConstants {
         public static final Pattern SKU = Pattern.compile("^[A-Z0-9]{3,20}$");
     }
 
-    // ==================== ROLES ====================
-    public static final class Roles {
-        private Roles() { throw new UnsupportedOperationException(); }
-        public static final String ADMIN = "ROLE_ADMIN";
-        public static final String SELLER = "ROLE_SELLER";
-        public static final String CUSTOMER = "ROLE_CUSTOMER";
-        public static final String DELIVERY_AGENT = "ROLE_DELIVERY";
-        public static final Set<String> ALL = Set.of(ADMIN, SELLER, CUSTOMER, DELIVERY_AGENT);
-    }
     
     // ==================== MESSAGES ====================
     public static final class Messages {

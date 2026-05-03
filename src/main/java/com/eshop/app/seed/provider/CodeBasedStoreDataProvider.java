@@ -35,7 +35,7 @@ public class CodeBasedStoreDataProvider implements StoreDataProvider {
                 "Green Valley Farm", 
                 "farmer1", 
                 "Fresh organic vegetables and fruits directly from farm",
-                "FARMER"
+                "BUSINESS"
             )
         );
     }

@@ -28,7 +28,7 @@ public class CodeBasedProductDataProvider implements ProductDataProvider {
                 "NIKE-AIRMAX-001", 
                 150.00, 
                 120.00, 
-                "Clothing", // Note: mapped to 'Fashion & Apparel' -> 'Footwear' -> 'Sports Shoes' ideally, but likely string match on category name
+                        "Men's Sports Shoes",
                 "Nike", 
                 "Tech Retail Store", 
                 "sale"

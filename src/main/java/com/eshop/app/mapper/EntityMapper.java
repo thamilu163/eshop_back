@@ -75,7 +75,18 @@ public class EntityMapper {
         response.setOrderNumber(order.getOrderNumber());
         if (order.getCustomer() != null) {
             response.setCustomerId(order.getCustomer().getId());
-            response.setCustomerName((order.getCustomer().getFirstName() != null ? order.getCustomer().getFirstName() : "") + " " + (order.getCustomer().getLastName() != null ? order.getCustomer().getLastName() : ""));
+            User customer = order.getCustomer();
+            if (customer.getUserProfile() != null) {
+                response.setCustomerName(
+                        (customer.getUserProfile().getFirstName() != null ? customer.getUserProfile().getFirstName()
+                                : "")
+                                + " "
+                                + (customer.getUserProfile().getLastName() != null
+                                        ? customer.getUserProfile().getLastName()
+                                        : ""));
+            } else {
+                response.setCustomerName(customer.getUsername());
+            }
             response.setCustomerEmail(order.getCustomer().getEmail());
         }
 
@@ -101,7 +112,16 @@ public class EntityMapper {
 
         if (order.getDeliveryAgent() != null) {
             response.setDeliveryAgentId(order.getDeliveryAgent().getId());
-            response.setDeliveryAgentName((order.getDeliveryAgent().getFirstName() != null ? order.getDeliveryAgent().getFirstName() : "") + " " + (order.getDeliveryAgent().getLastName() != null ? order.getDeliveryAgent().getLastName() : ""));
+            User agent = order.getDeliveryAgent();
+            if (agent.getUserProfile() != null) {
+                response.setDeliveryAgentName(
+                        (agent.getUserProfile().getFirstName() != null ? agent.getUserProfile().getFirstName() : "")
+                                + " "
+                                + (agent.getUserProfile().getLastName() != null ? agent.getUserProfile().getLastName()
+                                        : ""));
+            } else {
+                response.setDeliveryAgentName(agent.getUsername());
+            }
         }
 
         response.setCreatedAt(order.getCreatedAt());

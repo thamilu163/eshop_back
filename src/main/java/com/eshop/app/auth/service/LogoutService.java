@@ -2,9 +2,9 @@ package com.eshop.app.auth.service;
 
 import com.eshop.app.auth.validator.RedirectUriValidator;
 import com.eshop.app.config.KeycloakConfigProperties;
+import com.eshop.app.config.properties.AppProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -20,9 +20,7 @@ public class LogoutService {
     
     private final KeycloakConfigProperties keycloakConfig;
     private final RedirectUriValidator redirectUriValidator;
-    
-    @Value("${app.security.default-redirect-uri:http://localhost:3000}")
-    private String defaultRedirectUri;
+    private final AppProperties appProperties;
     
     /**
      * Generates a complete Keycloak logout URL with validated redirect.
@@ -49,6 +47,8 @@ public class LogoutService {
      * Validates redirect URI or returns default.
      */
     private String getValidatedRedirectUri(String redirectUri, String clientIp) {
+        String defaultRedirectUri = appProperties.getSecurity().getDefaultRedirectUri();
+
         if (!StringUtils.hasText(redirectUri)) {
             log.debug("No redirect URI provided, using default: {}", defaultRedirectUri);
             return defaultRedirectUri;

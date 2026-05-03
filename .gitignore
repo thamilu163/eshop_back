@@ -40,3 +40,11 @@ out/
 .env
 .env.*
 !.env.example
+
+### Logs and Build Artifacts ###
+*.log
+build_errors.txt
+build_errors_utf8.txt
+compile_log.txt
+test_log.txt
+# Code Citations.md

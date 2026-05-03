@@ -1,68 +1,119 @@
 package com.eshop.app.health;
+
+import com.zaxxer.hikari.HikariDataSource;
+import com.zaxxer.hikari.HikariPoolMXBean;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 
 import javax.sql.DataSource;
-import jakarta.annotation.PostConstruct;
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
- * MEDIUM-004 FIX: HikariCP Connection Pool Health Indicator
+ * MEDIUM-004 FIX: HikariCP Connection Pool Health Indicator (Reflective)
  * 
- * <p>Monitors database connection pool health and exposes metrics via Spring Boot Actuator.
- * Critical for detecting connection pool exhaustion before it causes production incidents.
- * 
- * <h2>Monitored Metrics:</h2>
- * <ul>
- *   <li>Active connections (currently in use)</li>
- *   <li>Idle connections (available for use)</li>
- *   <li>Total connections (active + idle)</li>
- *   <li>Threads awaiting connections (connection starvation indicator)</li>
- *   <li>Pool utilization percentage</li>
- * </ul>
- * 
- * <h2>Health Status Logic:</h2>
- * <ul>
- *   <li>UP: Utilization ≤ 70%</li>
- *   <li>DEGRADED: Utilization 70-90%</li>
- *   <li>DOWN: Utilization > 90% or threads waiting > 0</li>
- * </ul>
- * 
- * <h2>Alert Thresholds:</h2>
- * <ul>
- *   <li>⚠️  Warning: > 70% utilization</li>
- *   <li>🚨 Critical: > 90% utilization or connection starvation</li>
- * </ul>
- * 
- * <h2>Access Endpoint:</h2>
- * <pre>
- * GET /actuator/health/hikariPool
- * </pre>
- * 
- * @author EShop Operations Team
- * @version 1.0
- * @since 2025-12-20
+ * <p>
+ * Monitors database connection pool health and exposes metrics via Spring Boot
+ * Actuator.
+ * Uses reflection and dynamic proxies to avoid direct compile-time coupling
+ * with Actuator APIs,
+ * consistent with the project's architectural pattern.
  */
-@Component("hikariPool")
-@RequiredArgsConstructor
+@Configuration
 @Slf4j
+@RequiredArgsConstructor
 public class HikariConnectionPoolHealthIndicator {
 
-    @SuppressWarnings("unused") // Reserved for future health check implementation
     private final DataSource dataSource;
 
-    @PostConstruct
-    public void init() {
+    @Bean("hikariPool")
+    @ConditionalOnClass(name = "org.springframework.boot.actuate.health.HealthIndicator")
+    public Object hikariPoolHealthIndicator() {
         try {
-            Class.forName("org.springframework.boot.actuate.health.HealthIndicator");
-            // Actuator HealthIndicator is present on classpath - consider registering
-            // a dedicated HealthIndicator bean that inspects Hikari metrics.
-            // To avoid compile-time dependency on actuator types, this class
-            // intentionally does not implement HealthIndicator when actuator
-            // classes are not present during compilation in this environment.
-            log.info("Actuator HealthIndicator appears available; Hikari health indicator can be registered at runtime if required");
-        } catch (ClassNotFoundException e) {
-            log.warn("Actuator HealthIndicator not available on classpath; Hikari health indicator disabled: {}", e.getMessage());
+            final Class<?> healthIndicatorClass = Class
+                    .forName("org.springframework.boot.actuate.health.HealthIndicator");
+            final Class<?> healthClass = Class.forName("org.springframework.boot.actuate.health.Health");
+            final Class<?> builderClass = Class.forName("org.springframework.boot.actuate.health.Health$Builder");
+            final Class<?> statusClass = Class.forName("org.springframework.boot.actuate.health.Status");
+
+            final Method healthUpMethod = healthClass.getMethod("up");
+            final Method healthDownMethod = healthClass.getMethod("down");
+            final Method healthStatusMethod = healthClass.getMethod("status", statusClass);
+            final Method builderWithDetail = builderClass.getMethod("withDetail", String.class, Object.class);
+            final Method builderBuild = builderClass.getMethod("build");
+
+            InvocationHandler handler = (proxy, method, args) -> {
+                if ("health".equals(method.getName()) && (args == null || args.length == 0)) {
+                    return getHealth(healthUpMethod, healthDownMethod, healthStatusMethod, statusClass,
+                            builderWithDetail, builderBuild);
+                }
+                return null;
+            };
+
+            return Proxy.newProxyInstance(healthIndicatorClass.getClassLoader(),
+                    new Class[] { healthIndicatorClass }, handler);
+
+        } catch (Exception e) {
+            log.warn(
+                    "Failed to register Hikari health indicator: Actuator might be missing or version incompatible: {}",
+                    e.getMessage());
+            return new Object(); // Fallback
         }
+    }
+
+    private Object getHealth(Method healthUpMethod, Method healthDownMethod, Method healthStatusMethod,
+            Class<?> statusClass, Method builderWithDetail, Method builderBuild) throws Exception {
+
+        if (!(dataSource instanceof HikariDataSource)) {
+            Object builder = healthUpMethod.invoke(null);
+            builderWithDetail.invoke(builder, "message", "Not a HikariDataSource");
+            return builderBuild.invoke(builder);
+        }
+
+        HikariDataSource hikariDataSource = (HikariDataSource) dataSource;
+        HikariPoolMXBean poolProxy = hikariDataSource.getHikariPoolMXBean();
+
+        if (poolProxy == null) {
+            Object builder = healthUpMethod.invoke(null);
+            builderWithDetail.invoke(builder, "message", "HikariPoolMXBean not initialized");
+            return builderBuild.invoke(builder);
+        }
+
+        int active = poolProxy.getActiveConnections();
+        int idle = poolProxy.getIdleConnections();
+        int total = poolProxy.getTotalConnections();
+        int waiting = poolProxy.getThreadsAwaitingConnection();
+        int max = hikariDataSource.getMaximumPoolSize();
+
+        double utilization = (double) active / max * 100;
+
+        Object builder;
+        if (waiting > 0 || utilization > 90) {
+            builder = healthDownMethod.invoke(null);
+            log.error("🚨 Critical connection pool utilization: {}%, Waiters: {}",
+                    String.format("%.2f", utilization), waiting);
+        } else if (utilization > 70) {
+            Object degradedStatus = statusClass.getConstructor(String.class, String.class).newInstance("DEGRADED",
+                    "Pool usage is high");
+            builder = healthStatusMethod.invoke(null, degradedStatus);
+            log.warn("⚠️ High connection pool utilization: {}%", String.format("%.2f", utilization));
+        } else {
+            builder = healthUpMethod.invoke(null);
+        }
+
+        builderWithDetail.invoke(builder, "activeConnections", active);
+        builderWithDetail.invoke(builder, "idleConnections", idle);
+        builderWithDetail.invoke(builder, "totalConnections", total);
+        builderWithDetail.invoke(builder, "threadsAwaitingConnection", waiting);
+        builderWithDetail.invoke(builder, "maxPoolSize", max);
+        builderWithDetail.invoke(builder, "utilization", String.format("%.2f%%", utilization));
+
+        return builderBuild.invoke(builder);
     }
 }

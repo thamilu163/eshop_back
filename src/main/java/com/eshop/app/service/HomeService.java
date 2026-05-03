@@ -11,7 +11,6 @@ import com.eshop.app.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,15 +38,16 @@ public class HomeService {
     }
 
     private User getUserFromAuthentication(Authentication authentication) {
-        if (authentication == null || !authentication.isAuthenticated() ||
-                !(authentication.getPrincipal() instanceof UserDetails)) {
+        if (authentication == null || !authentication.isAuthenticated()) {
             return null;
         }
 
-        UserDetails userDetails = (UserDetails) authentication.getPrincipal();
-        String username = userDetails.getUsername();
+        if (authentication.getPrincipal() instanceof com.eshop.app.security.PrincipalDetails details) {
+            Long userId = details.getId();
+            return userRepository.findById(userId).orElse(null);
+        }
 
-        return userRepository.findByUsername(username).orElse(null);
+        return null;
     }
 
     @Transactional(readOnly = true)
@@ -57,7 +57,9 @@ public class HomeService {
         }
 
         UserRole role = user.getRole();
-        String userName = user.getFirstName() + " " + user.getLastName();
+        String userName = user.getUserProfile() != null
+                ? user.getUserProfile().getFirstName() + " " + user.getUserProfile().getLastName()
+                : user.getKeycloakId();
 
         log.info("Generating home page data for user: {} with role: {}", userName, role);
 
@@ -164,8 +166,7 @@ public class HomeService {
         data.put("pendingOrders", pendingOrders);
         data.put("cartItems", cartItemsCount);
         data.put("totalSpent", totalSpent != null ? "₹" + totalSpent : "₹0");
-        data.put("accountStatus", user.getActive() ? "Active" : "Inactive");
-        data.put("emailVerified", user.getEmailVerified());
+        data.put("accountStatus", "Active"); // Defaulting as we use Keycloak for status now
 
         return data;
     }

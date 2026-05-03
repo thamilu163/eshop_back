@@ -11,6 +11,9 @@ import com.eshop.app.exception.ResourceNotFoundException;
 import com.eshop.app.mapper.UserMapper;
 import com.eshop.app.repository.UserRepository;
 import com.eshop.app.service.UserService;
+import com.eshop.app.service.KeycloakService;
+import com.eshop.app.enums.DocumentType;
+import com.eshop.app.entity.UserProfile;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -22,40 +25,42 @@ import lombok.extern.slf4j.Slf4j;
 @Transactional
 @Slf4j
 public class UserServiceImpl implements UserService {
-    
+
     private final UserRepository userRepository;
     private final UserMapper userMapper;
-    private final org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
-    
+    private final KeycloakService keycloakService;
+
     public UserServiceImpl(UserRepository userRepository, UserMapper userMapper,
-                           org.springframework.security.crypto.password.PasswordEncoder passwordEncoder) {
+            KeycloakService keycloakService) {
         this.userRepository = userRepository;
         this.userMapper = userMapper;
-        this.passwordEncoder = passwordEncoder;
+        this.keycloakService = keycloakService;
     }
-    
+
     @Override
     @Transactional(readOnly = true)
     public UserResponse getUserById(Long id) {
         User user = userRepository.findById(id)
-            .orElseThrow(() -> {
-                log.warn("User not found with id: {}", id);
-                return new ResourceNotFoundException("User not found with id: " + id);
-            });
+                .orElseThrow(() -> {
+                    log.warn("User not found with id: {}", id);
+                    return new ResourceNotFoundException("User not found with id: " + id);
+                });
         return userMapper.toUserResponse(user);
     }
-    
+
     @Override
     public UserResponse updateUser(Long id, UserUpdateRequest request) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
-        
-        user.setFirstName(request.getFirstName());
-        user.setLastName(request.getLastName());
-        user.setEmail(request.getEmail());
-        user.setPhone(request.getPhone());
-        user.setAddress(request.getAddress());
-        
+
+        if (user.getUserProfile() == null) {
+            user.setUserProfile(new com.eshop.app.entity.UserProfile());
+            user.getUserProfile().setUser(user);
+        }
+        user.getUserProfile().setFirstName(request.getFirstName());
+        user.getUserProfile().setLastName(request.getLastName());
+        user.getUserProfile().setPhone(request.getPhone());
+
         user = userRepository.save(user);
         return userMapper.toUserResponse(user);
     }
@@ -65,15 +70,63 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
 
-        if (request.getFirstName() != null) user.setFirstName(request.getFirstName());
-        if (request.getLastName() != null) user.setLastName(request.getLastName());
-        if (request.getPhone() != null) user.setPhone(request.getPhone());
-        if (request.getAddress() != null) user.setAddress(request.getAddress());
+        if (user.getUserProfile() == null) {
+            user.setUserProfile(new com.eshop.app.entity.UserProfile());
+            user.getUserProfile().setUser(user);
+        }
+        if (request.getFirstName() != null)
+            user.getUserProfile().setFirstName(request.getFirstName());
+        if (request.getLastName() != null)
+            user.getUserProfile().setLastName(request.getLastName());
+        if (request.getPhone() != null)
+            user.getUserProfile().setPhone(request.getPhone());
+
+        // Handle Address
+        if (request.getAddress() != null || request.getAddressLine1() != null || request.getAddressLine2() != null || 
+            request.getCity() != null || request.getPincode() != null || request.getState() != null || request.getDistrict() != null) {
+            com.eshop.app.entity.UserAddress address;
+            if (user.getUserProfile().getAddresses() == null) {
+                user.getUserProfile().setAddresses(new java.util.ArrayList<>());
+            }
+
+            if (!user.getUserProfile().getAddresses().isEmpty()) {
+                address = user.getUserProfile().getAddresses().get(0);
+            } else {
+                address = com.eshop.app.entity.UserAddress.builder()
+                        .userProfile(user.getUserProfile())
+                        .isDefault(true)
+                        .build();
+                user.getUserProfile().getAddresses().add(address);
+            }
+
+            if (request.getAddressLine1() != null)
+                address.setAddressLine1(request.getAddressLine1());
+            else if (request.getAddress() != null)
+                address.setAddressLine1(request.getAddress());
+
+            if (request.getAddressLine2() != null)
+                address.setAddressLine2(request.getAddressLine2());
+            if (request.getCity() != null)
+                address.setCity(request.getCity());
+            if (request.getDistrict() != null)
+                address.setDistrict(request.getDistrict());
+            if (request.getState() != null)
+                address.setState(request.getState());
+            if (request.getPincode() != null)
+                address.setPincode(request.getPincode());
+            if (request.getCountry() != null)
+                address.setCountry(request.getCountry());
+        }
+
+        if (request.getDateOfBirth() != null)
+            user.getUserProfile().setDateOfBirth(request.getDateOfBirth());
+        if (request.getGender() != null)
+            user.getUserProfile().setGender(request.getGender());
 
         user = userRepository.save(user);
         return userMapper.toUserResponse(user);
     }
-    
+
     @Override
     public void deleteUser(Long id) {
         if (!userRepository.existsById(id)) {
@@ -81,14 +134,14 @@ public class UserServiceImpl implements UserService {
         }
         userRepository.deleteById(id);
     }
-    
+
     @Override
     @Transactional(readOnly = true)
     public PageResponse<UserResponse> getAllUsers(Pageable pageable) {
         Page<User> userPage = userRepository.findAll(pageable);
         return PageResponse.of(userPage, userMapper::toUserResponse);
     }
-    
+
     @Override
     @Transactional(readOnly = true)
     public PageResponse<UserResponse> getUsersByRole(String role, Pageable pageable) {
@@ -96,7 +149,7 @@ public class UserServiceImpl implements UserService {
         Page<User> userPage = userRepository.findByRole(userRole, pageable);
         return PageResponse.of(userPage, userMapper::toUserResponse);
     }
-    
+
     @Override
     @Transactional(readOnly = true)
     public PageResponse<UserResponse> searchUsers(String keyword, Pageable pageable) {
@@ -105,26 +158,35 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public PageResponse<UserResponse> getUsersByActiveStatus(Boolean active, Pageable pageable) {
-        Page<User> userPage = userRepository.findByActive(active, pageable);
+        log.warn(
+                "Filtering by active status locally is no longer supported as it resides in Keycloak. Returning all users.");
+        Page<User> userPage = userRepository.findAll(pageable);
         return PageResponse.of(userPage, userMapper::toUserResponse);
     }
-    
+
     @Override
     public UserResponse activateUser(Long id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
-        user.setActive(true);
-        user = userRepository.save(user);
+        try {
+            keycloakService.setUserEnabled(user.getKeycloakId(), true);
+        } catch (Exception e) {
+            log.error("Failed to activate user in Keycloak: {}", e.getMessage());
+        }
         return userMapper.toUserResponse(user);
     }
-    
+
     @Override
     public UserResponse deactivateUser(Long id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
-        user.setActive(false);
-        user = userRepository.save(user);
+        try {
+            keycloakService.setUserEnabled(user.getKeycloakId(), false);
+        } catch (Exception e) {
+            log.error("Failed to deactivate user in Keycloak: {}", e.getMessage());
+        }
         return userMapper.toUserResponse(user);
     }
 
@@ -143,8 +205,6 @@ public class UserServiceImpl implements UserService {
         return userMapper.toUserResponse(user);
     }
 
-
-
     @Override
     public void hardDeleteUser(Long id) {
         if (!userRepository.existsById(id)) {
@@ -155,24 +215,30 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public void softDeleteUser(Long id) {
-        User user = userRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
-        user.setActive(false);
-        userRepository.save(user);
+        // Status is managed by Keycloak, so soft delete is essentially deactivating in
+        // Keycloak
+        deactivateUser(id);
     }
 
+    /**
+     * Shared helper: activate or deactivate a batch of users.
+     * Eliminates near-identical bulkActivate / bulkDeactivate bodies.
+     */
     @Override
     public BulkOperationResult bulkActivate(java.util.List<Long> userIds) {
-        java.util.List<User> users = userRepository.findAllById(userIds);
-        java.util.Set<Long> found = new java.util.HashSet<>();
-        for (User u : users) found.add(u.getId());
+        int success = 0;
         java.util.List<Long> failed = new java.util.ArrayList<>();
-        for (Long id : userIds) if (!found.contains(id)) failed.add(id);
-        for (User u : users) u.setActive(true);
-        userRepository.saveAll(users);
+        for (Long id : userIds) {
+            try {
+                activateUser(id);
+                success++;
+            } catch (Exception e) {
+                failed.add(id);
+            }
+        }
         return BulkOperationResult.builder()
                 .totalProcessed(userIds.size())
-                .successCount(users.size())
+                .successCount(success)
                 .failedCount(failed.size())
                 .failedIds(failed)
                 .build();
@@ -180,16 +246,19 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public BulkOperationResult bulkDeactivate(java.util.List<Long> userIds) {
-        java.util.List<User> users = userRepository.findAllById(userIds);
-        java.util.Set<Long> found = new java.util.HashSet<>();
-        for (User u : users) found.add(u.getId());
+        int success = 0;
         java.util.List<Long> failed = new java.util.ArrayList<>();
-        for (Long id : userIds) if (!found.contains(id)) failed.add(id);
-        for (User u : users) u.setActive(false);
-        userRepository.saveAll(users);
+        for (Long id : userIds) {
+            try {
+                deactivateUser(id);
+                success++;
+            } catch (Exception e) {
+                failed.add(id);
+            }
+        }
         return BulkOperationResult.builder()
                 .totalProcessed(userIds.size())
-                .successCount(users.size())
+                .successCount(success)
                 .failedCount(failed.size())
                 .failedIds(failed)
                 .build();
@@ -202,10 +271,13 @@ public class UserServiceImpl implements UserService {
         for (User u : all) {
             if (role != null) {
                 try {
-                    if (!u.getRole().name().equals(role.name())) continue;
-                } catch (Exception ignored) { continue; }
+                    if (!u.getRole().name().equals(role.name()))
+                        continue;
+                } catch (Exception ignored) {
+                    continue;
+                }
             }
-            if (active != null && !active.equals(u.getActive())) continue;
+            // Active status filter skipped as it's in Keycloak
             filtered.add(u);
         }
 
@@ -214,18 +286,23 @@ public class UserServiceImpl implements UserService {
                 org.apache.poi.xssf.usermodel.XSSFWorkbook wb = new org.apache.poi.xssf.usermodel.XSSFWorkbook();
                 org.apache.poi.ss.usermodel.Sheet sheet = wb.createSheet("Users");
                 org.apache.poi.ss.usermodel.Row header = sheet.createRow(0);
-                String[] cols = new String[]{"Id","Username","Email","FirstName","LastName","Role","Active"};
-                for (int i=0;i<cols.length;i++) header.createCell(i).setCellValue(cols[i]);
+                String[] cols = new String[] { "Id", "KeycloakId", "FirstName", "LastName", "Role" };
+                for (int i = 0; i < cols.length; i++)
+                    header.createCell(i).setCellValue(cols[i]);
                 int r = 1;
                 for (User u : filtered) {
                     org.apache.poi.ss.usermodel.Row row = sheet.createRow(r++);
                     row.createCell(0).setCellValue(u.getId());
-                    row.createCell(1).setCellValue(u.getUsername());
-                    row.createCell(2).setCellValue(u.getEmail());
-                    row.createCell(3).setCellValue(u.getFirstName() == null ? "" : u.getFirstName());
-                    row.createCell(4).setCellValue(u.getLastName() == null ? "" : u.getLastName());
-                    row.createCell(5).setCellValue(u.getRole() == null ? "" : u.getRole().name());
-                    row.createCell(6).setCellValue(Boolean.TRUE.equals(u.getActive()) ? "true" : "false");
+                    row.createCell(1).setCellValue(u.getKeycloakId());
+                    String fName = (u.getUserProfile() != null && u.getUserProfile().getFirstName() != null)
+                            ? u.getUserProfile().getFirstName()
+                            : "";
+                    String lName = (u.getUserProfile() != null && u.getUserProfile().getLastName() != null)
+                            ? u.getUserProfile().getLastName()
+                            : "";
+                    row.createCell(2).setCellValue(fName);
+                    row.createCell(3).setCellValue(lName);
+                    row.createCell(4).setCellValue(u.getRole() == null ? "" : u.getRole().name());
                 }
                 try (java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream()) {
                     wb.write(out);
@@ -235,15 +312,21 @@ public class UserServiceImpl implements UserService {
             } else {
                 // CSV
                 StringBuilder sb = new StringBuilder();
-                sb.append("Id,Username,Email,FirstName,LastName,Role,Active\n");
+                sb.append("Id,KeycloakId,FirstName,LastName,Role\n");
                 for (User u : filtered) {
                     sb.append(u.getId()).append(',')
-                      .append('"').append(u.getUsername()).append('"').append(',')
-                      .append('"').append(u.getEmail()).append('"').append(',')
-                      .append('"').append(u.getFirstName() == null ? "" : u.getFirstName()).append('"').append(',')
-                      .append('"').append(u.getLastName() == null ? "" : u.getLastName()).append('"').append(',')
-                      .append(u.getRole() == null ? "" : u.getRole().name()).append(',')
-                      .append(Boolean.TRUE.equals(u.getActive()) ? "true" : "false").append('\n');
+                            .append('"').append(u.getKeycloakId()).append('"').append(',')
+                            .append('"')
+                            .append((u.getUserProfile() != null && u.getUserProfile().getFirstName() != null)
+                                    ? u.getUserProfile().getFirstName()
+                                    : "")
+                            .append('"').append(',')
+                            .append('"')
+                            .append((u.getUserProfile() != null && u.getUserProfile().getLastName() != null)
+                                    ? u.getUserProfile().getLastName()
+                                    : "")
+                            .append('"').append(',')
+                            .append(u.getRole() == null ? "" : u.getRole().name()).append('\n');
                 }
                 return sb.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
             }
@@ -251,45 +334,45 @@ public class UserServiceImpl implements UserService {
             throw new RuntimeException("Failed to export users", e);
         }
     }
-    
+
     // Dashboard Analytics Methods Implementation
     @Override
     @Transactional(readOnly = true)
     public long getTotalUserCount() {
         return userRepository.count();
     }
-    
+
     @Override
     @Transactional(readOnly = true)
     public long getCustomerCount() {
         return userRepository.countByRole(UserRole.CUSTOMER);
     }
-    
+
     @Override
     @Transactional(readOnly = true)
     public long getSellerCount() {
         return userRepository.countByRole(UserRole.SELLER);
     }
-    
+
     @Override
     @Transactional(readOnly = true)
     public long getDeliveryAgentCount() {
         return userRepository.countByRole(UserRole.DELIVERY_AGENT);
     }
-    
+
     @Override
     @Transactional(readOnly = true)
     public long getActiveUserCount() {
-        return userRepository.countByActiveTrue();
+        // For now, return total count as active status is not in local DB
+        return userRepository.count();
     }
-    
+
     @Override
     @Transactional(readOnly = true)
     public long getNewUsersThisMonth() {
-        java.time.LocalDateTime startOfMonth = java.time.LocalDateTime.now().withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0);
-        return userRepository.countByCreatedAtAfter(startOfMonth);
+        return userRepository.countByCreatedAtAfter(com.eshop.app.util.DateTimeUtils.startOfMonth());
     }
-    
+
     @Override
     @Transactional(readOnly = true)
     public java.time.LocalDate getMemberSinceByUserId(Long userId) {
@@ -297,7 +380,7 @@ public class UserServiceImpl implements UserService {
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
         return user.getCreatedAt() != null ? user.getCreatedAt().toLocalDate() : java.time.LocalDate.now();
     }
-    
+
     @Override
     @Transactional(readOnly = true)
     public java.util.List<java.util.Map<String, Object>> getUserGrowthData() {
@@ -306,55 +389,98 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional(readOnly = true)
-    public java.util.Optional<Long> findUserIdByUsernameOrEmail(String usernameOrEmail) {
-        if (usernameOrEmail == null) return java.util.Optional.empty();
-        java.util.Optional<User> byUsername = userRepository.findByUsername(usernameOrEmail);
-        if (byUsername.isPresent()) return java.util.Optional.of(byUsername.get().getId());
-        java.util.Optional<User> byEmail = userRepository.findByEmail(usernameOrEmail);
-        return byEmail.map(User::getId);
+    public java.util.Optional<Long> findUserIdByKeycloakId(String keycloakId) {
+        return userRepository.findByKeycloakId(keycloakId).map(User::getId);
     }
 
     @Override
     @Transactional
-    public Long createUserFromClaims(String username, String email, String firstName, String lastName, Boolean emailVerified) {
-        // Defensive checks
-        if ((username == null || username.isBlank()) && (email == null || email.isBlank())) {
-            throw new IllegalArgumentException("Either username or email must be provided to create user");
+    public Long createUserFromKeycloak(String keycloakId, String firstName, String lastName, String phoneNumber) {
+        return syncUserFromKeycloak(keycloakId, null, null, firstName, lastName, phoneNumber, false);
+    }
+
+    @Override
+    @Transactional
+    public Long syncUserFromKeycloak(String keycloakId, String username, String email, String firstName,
+            String lastName, String phoneNumber, Boolean emailVerified) {
+        java.util.Optional<User> existingUserOpt = userRepository.findByKeycloakId(keycloakId);
+
+        User user;
+        if (existingUserOpt.isPresent()) {
+            user = existingUserOpt.get();
+            // Update fields from Keycloak
+            user.setUsername(username);
+            user.setEmail(email);
+            if (emailVerified != null) {
+                user.setEmailVerified(emailVerified);
+            }
+            if (user.getUserProfile() != null) {
+                user.getUserProfile().setFirstName(firstName);
+                user.getUserProfile().setLastName(lastName);
+                if (phoneNumber != null && !phoneNumber.isBlank()) {
+                    user.getUserProfile().setPhone(phoneNumber);
+                }
+            }
+        } else {
+            user = User.builder()
+                    .keycloakId(keycloakId)
+                    .username(username)
+                    .email(email)
+                    .emailVerified(emailVerified != null ? emailVerified : false)
+                    .role(UserRole.CUSTOMER)
+                    .build();
+
+            UserProfile profile = UserProfile.builder()
+                    .user(user)
+                    .firstName(firstName)
+                    .lastName(lastName)
+                    .phone(phoneNumber)
+                    .build();
+            user.setUserProfile(profile);
         }
-
-        // Prefer username if available, otherwise derive from email
-        String finalUsername = username;
-        if (finalUsername == null || finalUsername.isBlank()) {
-            finalUsername = email.split("@")[0];
-        }
-
-        // Avoid collision: append numeric suffix if username exists
-        String candidate = finalUsername;
-        int suffix = 1;
-        while (userRepository.existsByUsername(candidate)) {
-            candidate = finalUsername + suffix++;
-        }
-        finalUsername = candidate;
-
-        String finalEmail = email != null ? email : (finalUsername + "@local.dev");
-
-        // Random password (won't be used for OIDC login) - encoded
-        String rawPassword = java.util.UUID.randomUUID().toString();
-        String encoded = passwordEncoder.encode(rawPassword);
-
-        User user = User.builder()
-                .username(finalUsername)
-                .email(finalEmail)
-                .password(encoded)
-                .firstName(firstName)
-                .lastName(lastName)
-                .role(UserRole.CUSTOMER)
-                .emailVerified(Boolean.TRUE.equals(emailVerified))
-                .active(true)
-                .build();
 
         user = userRepository.save(user);
-
         return user.getId();
+    }
+
+    private UserRole determineBestRole(java.util.Collection<String> roles) {
+        if (roles == null || roles.isEmpty())
+            return UserRole.CUSTOMER;
+
+        java.util.Set<String> upperRoles = roles.stream()
+                .map(String::toUpperCase)
+                .collect(java.util.stream.Collectors.toSet());
+
+        if (upperRoles.contains("ADMIN") || upperRoles.contains("ROLE_ADMIN"))
+            return UserRole.ADMIN;
+        if (upperRoles.contains("SELLER") || upperRoles.contains("ROLE_SELLER"))
+            return UserRole.SELLER;
+        if (upperRoles.contains("DELIVERY_AGENT") || upperRoles.contains("ROLE_DELIVERY_AGENT"))
+            return UserRole.DELIVERY_AGENT;
+
+        return UserRole.CUSTOMER;
+    }
+
+    @Override
+    @Transactional
+    public void syncUserRoles(Long userId, java.util.Collection<String> keycloakRoles) {
+        userRepository.findById(userId).ifPresent(user -> {
+            UserRole bestRole = determineBestRole(keycloakRoles);
+            if (user.getRole() != bestRole) {
+                log.info("Syncing role for user ID {}: {} -> {}", user.getId(), user.getRole(), bestRole);
+                user.setRole(bestRole);
+                userRepository.save(user);
+            }
+        });
+    }
+
+    @Override
+    @Transactional
+    public void syncKeycloakId(Long userId, String keycloakId) {
+        userRepository.findById(userId).ifPresent(user -> {
+            user.setKeycloakId(keycloakId);
+            userRepository.save(user);
+            log.info("Synced Keycloak ID {} for user {}", keycloakId, userId);
+        });
     }
 }

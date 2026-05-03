@@ -12,26 +12,33 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Optional;
 
+import org.springframework.data.jpa.repository.EntityGraph;
+
 @Repository
 public interface OrderRepository extends JpaRepository<Order, Long> {
 
         Optional<Order> findByOrderNumber(String orderNumber);
 
+        @EntityGraph(attributePaths = { "items" })
         Page<Order> findByCustomerId(Long customerId, Pageable pageable);
 
+        @EntityGraph(attributePaths = { "items" })
         Page<Order> findByOrderStatus(Order.OrderStatus orderStatus, Pageable pageable);
 
+        @EntityGraph(attributePaths = { "items" })
         Page<Order> findByPaymentStatus(Order.PaymentStatus paymentStatus, Pageable pageable);
 
+        @EntityGraph(attributePaths = { "items" })
         Page<Order> findByDeliveryAgentId(Long deliveryAgentId, Pageable pageable);
 
         @Query("SELECT o FROM Order o JOIN o.items oi WHERE oi.product.store.id = :storeId")
         Page<Order> findByStoreId(@Param("storeId") Long storeId, Pageable pageable);
 
-        @Query("SELECT o FROM Order o WHERE " +
+        @Query("SELECT o FROM Order o JOIN o.customer c LEFT JOIN c.userProfile up WHERE " +
                         "LOWER(o.orderNumber) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
-                        "LOWER(o.customer.email) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
-                        "LOWER(o.customer.username) LIKE LOWER(CONCAT('%', :keyword, '%'))")
+                        "LOWER(c.keycloakId) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+                        "LOWER(up.firstName) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+                        "LOWER(up.lastName) LIKE LOWER(CONCAT('%', :keyword, '%'))")
         Page<Order> searchOrders(@Param("keyword") String keyword, Pageable pageable);
 
         @Query("SELECT COUNT(o) FROM Order o WHERE o.customer.id = :customerId")
@@ -68,17 +75,19 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
         long countByOrderStatus(Order.OrderStatus orderStatus);
 
-        @Query("SELECT COALESCE(SUM(o.totalAmount), 0) FROM Order o JOIN o.items oi WHERE oi.product.store.seller.id = :sellerId AND o.createdAt BETWEEN :startDate AND :endDate")
+        @Query("SELECT COALESCE(SUM(o.totalAmount), 0) FROM Order o JOIN o.items oi WHERE oi.product.store.sellerProfile.user.id = :sellerId AND o.createdAt BETWEEN :startDate AND :endDate")
         BigDecimal sumRevenueBySellerIdBetweenDates(@Param("sellerId") Long sellerId,
                         @Param("startDate") LocalDateTime startDate, @Param("endDate") LocalDateTime endDate);
 
-        @Query("SELECT COUNT(o) FROM Order o JOIN o.items oi WHERE oi.product.store.seller.id = :sellerId AND o.orderStatus = :status")
+        @Query("SELECT COUNT(o) FROM Order o JOIN o.items oi WHERE oi.product.store.sellerProfile.user.id = :sellerId AND o.orderStatus = :status")
         long countByStoreSellerIdAndOrderStatus(@Param("sellerId") Long sellerId,
                         @Param("status") Order.OrderStatus status);
 
-        @Query("SELECT DISTINCT o FROM Order o JOIN o.items oi WHERE oi.product.store.seller.id = :sellerId")
+        @EntityGraph(attributePaths = { "items" })
+        @Query("SELECT DISTINCT o FROM Order o JOIN o.items oi WHERE oi.product.store.sellerProfile.user.id = :sellerId")
         Page<Order> findByStoreSellerId(@Param("sellerId") Long sellerId, Pageable pageable);
 
-        @Query("SELECT o FROM Order o JOIN o.items oi WHERE oi.product.store.seller.id = :sellerId ORDER BY o.createdAt DESC")
+        @EntityGraph(attributePaths = { "items" })
+        @Query("SELECT o FROM Order o JOIN o.items oi WHERE oi.product.store.sellerProfile.user.id = :sellerId ORDER BY o.createdAt DESC")
         java.util.List<Order> findRecentOrdersBySellerId(@Param("sellerId") Long sellerId, Pageable pageable);
 }

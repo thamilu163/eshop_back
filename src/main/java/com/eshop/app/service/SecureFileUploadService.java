@@ -1,10 +1,10 @@
 package com.eshop.app.service;
 
+import com.eshop.app.config.properties.AppProperties;
 import com.eshop.app.exception.FileUploadException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.tika.Tika;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
@@ -32,26 +32,7 @@ import java.util.Set;
 @Slf4j
 public class SecureFileUploadService {
     
-    private static final Set<String> ALLOWED_IMAGE_MIME_TYPES = Set.of(
-        "image/jpeg",
-        "image/jpg",
-        "image/png",
-        "image/webp"
-    );
-    
-    private static final Set<String> ALLOWED_IMAGE_EXTENSIONS = Set.of(
-        "jpg", "jpeg", "png", "webp"
-    );
-    
-    @Value("${app.upload.max-file-size:5242880}") // 5MB default
-    private long maxFileSize;
-    
-    @Value("${app.upload.max-image-width:4096}")
-    private int maxImageWidth;
-    
-    @Value("${app.upload.max-image-height:4096}")
-    private int maxImageHeight;
-    
+    private final AppProperties appProperties;
     private final Tika tika = new Tika();
     
     /**
@@ -66,6 +47,7 @@ public class SecureFileUploadService {
         }
         
         // Validate file size
+        long maxFileSize = appProperties.getStorage().getMaxFileSize();
         if (file.getSize() > maxFileSize) {
             throw new FileUploadException(
                 String.format("File size (%d bytes) exceeds maximum allowed size (%d bytes)", 
@@ -88,21 +70,23 @@ public class SecureFileUploadService {
         
         // Validate file extension
         String extension = getFileExtension(cleanFilename).toLowerCase();
-        if (!ALLOWED_IMAGE_EXTENSIONS.contains(extension)) {
+        Set<String> allowedExtensions = Set.of(appProperties.getStorage().getAllowedExtensions().split(","));
+        if (!allowedExtensions.contains(extension)) {
             throw new FileUploadException(
                 String.format("File extension '%s' is not allowed. Allowed: %s", 
-                    extension, ALLOWED_IMAGE_EXTENSIONS)
+                            extension, appProperties.getStorage().getAllowedExtensions())
             );
         }
         
         try {
-            // Detect actual MIME type from file content (not from header)
+            // Detect actual MIME type from file content
             String detectedMimeType = tika.detect(file.getInputStream());
+            Set<String> allowedMimeTypes = Set.of(appProperties.getStorage().getAllowedMimeTypes().split(","));
             
-            if (!ALLOWED_IMAGE_MIME_TYPES.contains(detectedMimeType)) {
+            if (!allowedMimeTypes.contains(detectedMimeType)) {
                 throw new FileUploadException(
                     String.format("File type '%s' is not allowed. Allowed: %s",
-                        detectedMimeType, ALLOWED_IMAGE_MIME_TYPES)
+                                detectedMimeType, appProperties.getStorage().getAllowedMimeTypes())
                 );
             }
             
@@ -137,10 +121,13 @@ public class SecureFileUploadService {
         int width = image.getWidth();
         int height = image.getHeight();
         
-        if (width > maxImageWidth || height > maxImageHeight) {
+        int maxWidth = appProperties.getStorage().getMaxImageWidth();
+        int maxHeight = appProperties.getStorage().getMaxImageHeight();
+
+        if (width > maxWidth || height > maxHeight) {
             throw new FileUploadException(
                 String.format("Image dimensions (%dx%d) exceed maximum allowed (%dx%d)",
-                    width, height, maxImageWidth, maxImageHeight)
+                            width, height, maxWidth, maxHeight)
             );
         }
         

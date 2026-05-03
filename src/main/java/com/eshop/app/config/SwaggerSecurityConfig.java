@@ -11,12 +11,19 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
+import org.springframework.beans.factory.annotation.Value;
 
 @Configuration
 @Profile("prod")
 @ConditionalOnProperty(name = "app.openapi.enabled", havingValue = "true", matchIfMissing = false)
 public class SwaggerSecurityConfig {
    
+    @Value("${app.swagger.security.authorization-url}")
+    private String authorizationUrl;
+
+    @Value("${app.swagger.security.token-url}")
+    private String tokenUrl;
+
     @Bean
     public OpenAPI secureOpenAPI() {
         return new OpenAPI()
@@ -26,8 +33,8 @@ public class SwaggerSecurityConfig {
                         .type(SecurityScheme.Type.OAUTH2)
                         .flows(new OAuthFlows()
                             .authorizationCode(new OAuthFlow()
-                                .authorizationUrl("http://localhost:8080/realms/eshop-dev/protocol/openid-connect/auth")
-                                .tokenUrl("http://localhost:8080/realms/eshop-dev/protocol/openid-connect/token")
+                                                        .authorizationUrl(authorizationUrl)
+                                                        .tokenUrl(tokenUrl)
                                 .scopes(new Scopes()
                                     .addString("openid", "OpenID")
                                 )

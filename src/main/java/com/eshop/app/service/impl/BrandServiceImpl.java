@@ -15,6 +15,7 @@ import com.eshop.app.repository.BrandRepository;
 import com.eshop.app.repository.ProductRepository;
 import com.eshop.app.service.BrandService;
 import com.eshop.app.util.SlugUtils;
+import com.eshop.app.util.SearchUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheConfig;
@@ -74,7 +75,7 @@ public class BrandServiceImpl implements BrandService {
     public List<BrandResponse> createBrandsBatch(List<BrandRequest> requests) {
         log.info("Batch creating {} brands", requests.size());
 
-        List<String> names = requests.stream().map(BrandRequest::getName).collect(Collectors.toList());
+        List<String> names = requests.stream().map(BrandRequest::getName).toList();
         Set<String> uniqueNames = new HashSet<>(names);
         if (uniqueNames.size() != names.size()) {
             throw new ConflictException("Duplicate brand names in request");
@@ -90,10 +91,10 @@ public class BrandServiceImpl implements BrandService {
                     Brand b = brandMapper.toEntity(r);
                     b.setSlug(SlugUtils.generateSlug(r.getName()));
                     return b;
-                }).collect(Collectors.toList());
+                }).toList();
 
         List<Brand> saved = brandRepository.saveAll(toSave);
-        return saved.stream().map(brandMapper::toResponse).collect(Collectors.toList());
+        return saved.stream().map(brandMapper::toResponse).toList();
     }
 
     // ==================== READ OPERATIONS ====================
@@ -174,14 +175,14 @@ public class BrandServiceImpl implements BrandService {
     @Cacheable(key = "'featured:' + #limit")
     public List<BrandResponse> getFeaturedBrands(int limit) {
         return brandRepository.findFeaturedBrands(Pageable.ofSize(limit))
-                .stream().map(brandMapper::toResponse).collect(Collectors.toList());
+                .stream().map(brandMapper::toResponse).toList();
     }
 
     // ==================== SEARCH ====================
 
     @Override
     public PageResponse<BrandResponse> searchBrands(String keyword, Pageable pageable) {
-        String safe = sanitizeSearchKeyword(keyword);
+        String safe = SearchUtils.sanitizeStrict(keyword);
         Page<Brand> page = brandRepository.searchByKeyword(safe, pageable);
         return createPageResponse(page);
     }
@@ -194,7 +195,7 @@ public class BrandServiceImpl implements BrandService {
 
     @Override
     public List<String> autocompleteBrandNames(String prefix, int limit) {
-        String safe = sanitizeSearchKeyword(prefix);
+        String safe = SearchUtils.sanitizeStrict(prefix);
         return brandRepository.findBrandNamesByPrefix(safe, Pageable.ofSize(limit));
     }
 
@@ -319,7 +320,7 @@ public class BrandServiceImpl implements BrandService {
         List<String> brandsWithProducts = brands.stream()
                 .filter(b -> productCounts.getOrDefault(b.getId(), 0L) > 0)
                 .map(b -> String.format("%s (%d products)", b.getName(), productCounts.get(b.getId())))
-                .collect(Collectors.toList());
+                .toList();
 
         if (!brandsWithProducts.isEmpty()) {
             throw new ConflictException("Cannot delete brands with products: " + String.join(", ", brandsWithProducts));
@@ -386,10 +387,5 @@ public class BrandServiceImpl implements BrandService {
 
     private PageResponse<BrandResponse> createPageResponse(Page<Brand> brandPage) {
         return PageResponse.of(brandPage, brandMapper::toResponse);
-    }
-
-    private String sanitizeSearchKeyword(String keyword) {
-        if (keyword == null) return "";
-        return keyword.trim().replaceAll("[^a-zA-Z0-9\\s-]", "").substring(0, Math.min(keyword.length(), 100));
     }
 }

@@ -10,6 +10,7 @@ import com.eshop.app.repository.TagRepository;
 import com.eshop.app.repository.OrderItemRepository;
 import com.eshop.app.mapper.ProductMapper;
 import com.eshop.app.service.AttributeValidatorService;
+import com.eshop.app.service.StoreService;
 import com.eshop.app.dto.request.ProductCreateRequest;
 import com.eshop.app.dto.request.ProductUpdateRequest;
 import com.eshop.app.dto.request.BatchProductCreateRequest;
@@ -22,6 +23,7 @@ import com.eshop.app.dto.response.BatchOperationResult;
 import com.eshop.app.dto.response.TopSellingProductResponse;
 import com.eshop.app.dto.response.ProductStatistics;
 import com.eshop.app.dto.response.SellerProductDashboard;
+import com.eshop.app.dto.response.StoreResponse;
 import com.eshop.app.entity.Product;
 import com.eshop.app.entity.Category;
 import com.eshop.app.entity.Brand;
@@ -46,6 +48,7 @@ import com.eshop.app.config.ProductProperties;
 import jakarta.annotation.PostConstruct;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
+import com.eshop.app.service.AttributeService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
@@ -91,13 +94,17 @@ public class ProductServiceImpl implements ProductService {
     private final CategoryRepository categoryRepository;
     private final BrandRepository brandRepository;
     private final StoreRepository storeRepository;
-    private final TagRepository tagRepository;
+    private final StoreService storeService;
+    private final TagRepository tagRepository; // Used in statistics and batch resolution
     private final OrderItemRepository orderItemRepository;
     private final ProductMapper productMapper;
     private final AttributeValidatorService attributeValidatorService;
     private final ProductProperties productProperties;
     private final ApplicationEventPublisher eventPublisher;
     private final ProductServiceHelper helper;
+    // private final com.eshop.app.repository.ProductRepositoryEnhanced
+    // productRepositoryEnhanced; // Removed
+    private final AttributeService attributeService;
 
     // ═══════════════════════════════════════════════════════════════
     // LIFECYCLE
@@ -190,17 +197,17 @@ public class ProductServiceImpl implements ProductService {
             final Long resolvedStoreId;
             if (request.getStoreId() != null) {
                 resolvedStoreId = request.getStoreId();
+                log.info("Using provided storeId={}", resolvedStoreId);
             } else {
-                log.info("StoreId not provided, auto-resolving from userId: {}", userId);
+                log.info("StoreId not provided, auto-resolving via storeService for user identifier: {}", userId);
                 try {
-                    Long sellerIdLong = Long.parseLong(userId);
-                    Store sellerStore = storeRepository.findBySellerId(sellerIdLong)
-                            .orElseThrow(() -> new ResourceNotFoundException(
-                                    "Seller must create a store before adding products. Please create your store first."));
+                    StoreResponse sellerStore = storeService.getMyStore();
                     resolvedStoreId = sellerStore.getId();
-                    log.info("Auto-resolved storeId={} for seller userId={}", resolvedStoreId, userId);
-                } catch (NumberFormatException e) {
-                    throw new ResourceNotFoundException("Invalid user ID format: " + userId);
+                    log.info("Auto-resolved storeId={} for seller with identifier={}", resolvedStoreId, userId);
+                } catch (ResourceNotFoundException e) {
+                    log.error("Failed to auto-resolve store for seller {}: {}", userId, e.getMessage());
+                    throw new ResourceNotFoundException(
+                            "Seller must create a store before adding products. Please create your store first.");
                 }
             }
 
@@ -266,10 +273,7 @@ public class ProductServiceImpl implements ProductService {
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
 
         product.setName(request.getName());
-        // Sanitize description before saving
-        String sanitizedDescription = request.getDescription() == null ? null
-                : org.springframework.web.util.HtmlUtils.htmlEscape(request.getDescription());
-        product.setDescription(sanitizedDescription);
+        product.setDescription(helper.sanitize(request.getDescription()));
 
         // Update friendly URL if provided, or generate new one if name changed
         if (request.getFriendlyUrl() != null && !request.getFriendlyUrl().trim().isEmpty()) {
@@ -297,15 +301,9 @@ public class ProductServiceImpl implements ProductService {
             product.setBrand(null);
         }
 
+        // Reuse the same batch tag resolution as createProduct (N+1 fix)
         if (request.getTags() != null) {
-            Set<Tag> tags = new HashSet<>();
-            for (String tagName : request.getTags()) {
-                Tag tag = tagRepository.findByName(tagName)
-                        .orElseGet(() -> tagRepository.save(Tag.builder().name(tagName).build()));
-                tags.add(tag);
-            }
-            // Directly set the tags as Set<Tag>
-            product.setTags(tags);
+            product.setTags(helper.resolveOrCreateTags(request.getTags()));
         }
 
         if (request.getFeatured() != null) {
@@ -371,6 +369,12 @@ public class ProductServiceImpl implements ProductService {
             throw new IllegalArgumentException("Either categoryId or newCategoryName must be provided");
         }
 
+        // Validate dynamic attributes
+        if (request.getAttributes() != null && !request.getAttributes().isEmpty()) {
+            attributeService.validateProductAttributes(category.getId(), request.getAttributes());
+        }
+
+        // 3. Create Product Entity
         Product product = Product.builder()
                 .name(request.getName())
                 .price(request.getPrice())
@@ -392,9 +396,9 @@ public class ProductServiceImpl implements ProductService {
      * @return Optional containing product if found
      */
     @Override
-    @Cacheable(value = "products", key = "#id")
+    @Cacheable(value = "products", key = "#id", sync = true)
     @Transactional(readOnly = true)
-    @PreAuthorize("hasAnyRole('ADMIN','SELLER','CUSTOMER','DELIVERY_AGENT')")
+    @PreAuthorize("permitAll()")
     public Optional<ProductResponse> findProductById(Long id) {
         return productRepository.findById(id)
                 .map(productMapper::toProductResponse);
@@ -408,7 +412,7 @@ public class ProductServiceImpl implements ProductService {
      */
     @Override
     @Transactional(readOnly = true)
-    @PreAuthorize("hasAnyRole('ADMIN','SELLER','CUSTOMER','DELIVERY_AGENT')")
+    @PreAuthorize("permitAll()")
     public Optional<ProductResponse> findProductBySku(String sku) {
         return productRepository.findBySku(sku)
                 .map(productMapper::toProductResponse);
@@ -422,7 +426,7 @@ public class ProductServiceImpl implements ProductService {
      */
     @Override
     @Transactional(readOnly = true)
-    @PreAuthorize("hasAnyRole('ADMIN','SELLER','CUSTOMER','DELIVERY_AGENT')")
+    @PreAuthorize("permitAll()")
     public Optional<ProductResponse> findProductByFriendlyUrl(String friendlyUrl) {
         return productRepository.findByFriendlyUrl(friendlyUrl)
                 .map(productMapper::toProductResponse);
@@ -439,7 +443,7 @@ public class ProductServiceImpl implements ProductService {
      */
     @Override
     @Transactional(readOnly = true)
-    @PreAuthorize("hasAnyRole('ADMIN','SELLER','CUSTOMER','DELIVERY_AGENT')")
+    @PreAuthorize("permitAll()")
     public Map<Long, ProductResponse> getProductsByIds(Set<Long> ids) {
         if (ids.isEmpty()) {
             return Collections.emptyMap();
@@ -481,7 +485,7 @@ public class ProductServiceImpl implements ProductService {
      */
     @Override
     @Transactional(readOnly = true)
-    @PreAuthorize("hasAnyRole('ADMIN','SELLER','CUSTOMER','DELIVERY_AGENT')")
+    @PreAuthorize("permitAll()")
     public PageResponse<ProductResponse> searchProducts(
             ProductSearchCriteria criteria,
             Pageable pageable) {
@@ -497,7 +501,7 @@ public class ProductServiceImpl implements ProductService {
      * @return paginated featured products
      */
     @Override
-    @Cacheable(value = "featuredProducts")
+    @Cacheable(value = "featuredProducts", sync = true)
     @Transactional(readOnly = true)
     @PreAuthorize("permitAll()")
     public PageResponse<ProductResponse> getFeaturedProducts(Pageable pageable) {
@@ -511,9 +515,9 @@ public class ProductServiceImpl implements ProductService {
      * Space Complexity: O(1)
      */
     @Override
-    @Cacheable(value = "products", key = "#id")
+    @Cacheable(value = "products", key = "#id", sync = true)
     @Transactional(readOnly = true)
-    @PreAuthorize("hasAnyRole('ADMIN','SELLER','CUSTOMER','DELIVERY_AGENT')")
+    @PreAuthorize("permitAll()")
     public ProductResponse getProductById(Long id) {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + id));
@@ -522,7 +526,7 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional(readOnly = true)
-    @PreAuthorize("hasAnyRole('ADMIN','SELLER','CUSTOMER','DELIVERY_AGENT')")
+    @PreAuthorize("permitAll()")
     public ProductResponse getProductBySku(String sku) {
         Product product = productRepository.findBySku(sku)
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found with SKU: " + sku));
@@ -531,7 +535,7 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional(readOnly = true)
-    @PreAuthorize("hasAnyRole('ADMIN','SELLER','CUSTOMER','DELIVERY_AGENT')")
+    @PreAuthorize("permitAll()")
     public ProductResponse getProductByFriendlyUrl(String friendlyUrl) {
         Product product = productRepository.findByFriendlyUrl(friendlyUrl)
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found with URL: " + friendlyUrl));
@@ -540,7 +544,7 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional(readOnly = true)
-    @PreAuthorize("hasAnyRole('ADMIN','SELLER','CUSTOMER','DELIVERY_AGENT')")
+    @PreAuthorize("permitAll()")
     public PageResponse<ProductListResponse> getAllProducts(Pageable pageable) {
         // Enforce max page size
         int maxPageSize = 50;
@@ -554,18 +558,18 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    @Cacheable(value = "productList", key = "'category:' + #categoryId + ':' + #pageable.pageNumber + ':' + #pageable.pageSize")
+    @Cacheable(value = "productList", key = "'category:' + #categoryId + ':' + #pageable.pageNumber + ':' + #pageable.pageSize", sync = true)
     @Transactional(readOnly = true)
-    @PreAuthorize("hasAnyRole('ADMIN','SELLER','CUSTOMER','DELIVERY_AGENT')")
+    @PreAuthorize("permitAll()")
     public PageResponse<ProductListResponse> getProductsByCategory(Long categoryId, Pageable pageable) {
         var page = productRepository.findSummariesByCategory(categoryId, pageable);
         return PageResponse.of(page, productMapper::toProductListResponse);
     }
 
     @Override
-    @Cacheable(value = "productList", key = "'brand:' + #brandId + ':' + #pageable.pageNumber + ':' + #pageable.pageSize")
+    @Cacheable(value = "productList", key = "'brand:' + #brandId + ':' + #pageable.pageNumber + ':' + #pageable.pageSize", sync = true)
     @Transactional(readOnly = true)
-    @PreAuthorize("hasAnyRole('ADMIN','SELLER','CUSTOMER','DELIVERY_AGENT')")
+    @PreAuthorize("permitAll()")
     public PageResponse<ProductListResponse> getProductsByBrand(Long brandId, Pageable pageable) {
         var page = productRepository.findAllSummaries(pageable); // Replace with a projection query for brand if
                                                                  // available
@@ -573,9 +577,9 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    @Cacheable(value = "productList", key = "'store:' + #storeId + ':' + #pageable.pageNumber + ':' + #pageable.pageSize")
+    @Cacheable(value = "productList", key = "'store:' + #storeId + ':' + #pageable.pageNumber + ':' + #pageable.pageSize", sync = true)
     @Transactional(readOnly = true)
-    @PreAuthorize("hasAnyRole('ADMIN','SELLER','CUSTOMER','DELIVERY_AGENT')")
+    @PreAuthorize("permitAll()")
     public PageResponse<ProductListResponse> getProductsByStore(Long storeId, Pageable pageable) {
         Page<Product> productPage = productRepository.findByStoreId(storeId, pageable);
         Page<ProductListResponse> responsePage = productPage
@@ -584,9 +588,9 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    @Cacheable(value = "productSearch", key = "#keyword + ':' + #pageable.pageNumber + ':' + #pageable.pageSize")
+    @Cacheable(value = "productSearch", key = "#keyword + ':' + #pageable.pageNumber + ':' + #pageable.pageSize", sync = true)
     @Transactional(readOnly = true)
-    @PreAuthorize("hasAnyRole('ADMIN','SELLER','CUSTOMER','DELIVERY_AGENT')")
+    @PreAuthorize("permitAll()")
     public PageResponse<ProductListResponse> searchProducts(String keyword, Pageable pageable) {
         Page<Product> productPage = productRepository.searchProducts(keyword, pageable);
         Page<ProductListResponse> responsePage = productPage
@@ -595,9 +599,9 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    @Cacheable(value = "productList", key = "'tags:' + #tags?.toString() + ':' + #pageable.pageNumber + ':' + #pageable.pageSize")
+    @Cacheable(value = "productList", key = "'tags:' + #tags?.toString() + ':' + #pageable.pageNumber + ':' + #pageable.pageSize", sync = true)
     @Transactional(readOnly = true)
-    @PreAuthorize("hasAnyRole('ADMIN','SELLER','CUSTOMER','DELIVERY_AGENT')")
+    @PreAuthorize("permitAll()")
     public PageResponse<ProductResponse> getProductsByTags(Set<String> tags, Pageable pageable) {
         Page<Product> page = productRepository.findByTagNames(tags, pageable);
         return PageResponse.of(page, productMapper::toProductResponse);
@@ -687,7 +691,7 @@ public class ProductServiceImpl implements ProductService {
     // Retry Recovery Methods (must be top-level, not nested)
     // ──────────────────────────────────────────────────────────────
     @Recover
-    public ProductResponse recoverFromFailure(Exception ex, ProductCreateRequest request) {
+    public ProductResponse recoverFromFailure(Exception ex, ProductCreateRequest request, String userId) {
         log.error("Failed to create product after retries: {}", ex.getMessage());
         // If this is a business exception, rethrow it so correct HTTP status is
         // preserved
@@ -841,29 +845,22 @@ public class ProductServiceImpl implements ProductService {
     }
 
     /**
-     * Generate SEO-friendly URL from product name
+     * Generate SEO-friendly URL from product name.
+     * Delegates to {@link ProductServiceHelper#generateFriendlyUrl(String)} to
+     * avoid duplication.
      */
     private String generateFriendlyUrl(String name) {
-        return name.toLowerCase()
-                .replaceAll("[^a-z0-9\\s]", "") // Remove special characters
-                .replaceAll("\\s+", "-") // Replace spaces with hyphens
-                .replaceAll("-+", "-") // Replace multiple hyphens with single
-                .replaceAll("^-|-$", ""); // Remove leading/trailing hyphens
+        return helper.generateFriendlyUrl(name);
     }
 
     /**
-     * Ensure friendly URL is unique by appending numbers if needed
+     * Ensure friendly URL is unique with circuit breaker protection.
+     * Delegates to {@link ProductServiceHelper#ensureUniqueFriendlyUrl(String)} to
+     * avoid
+     * duplicating the unsafe infinite-loop version.
      */
     private String ensureUniqueFriendlyUrl(String baseUrl) {
-        String friendlyUrl = baseUrl;
-        int counter = 1;
-
-        while (productRepository.existsByFriendlyUrl(friendlyUrl)) {
-            friendlyUrl = baseUrl + "-" + counter;
-            counter++;
-        }
-
-        return friendlyUrl;
+        return helper.ensureUniqueFriendlyUrl(baseUrl);
     }
 
     private Specification<Product> buildProductSpecification(ProductSearchCriteria criteria) {
@@ -916,14 +913,14 @@ public class ProductServiceImpl implements ProductService {
     public long getLowStockCountBySellerId(Long sellerId) {
 
         // Real implementation
-        return productRepository.countByStoreSellerIdAndStockQuantityLessThan(sellerId, LOW_STOCK_THRESHOLD);
+        return productRepository.countByStoreSellerProfileUserIdAndStockQuantityLessThan(sellerId, LOW_STOCK_THRESHOLD);
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<Map<String, Object>> getProductPerformanceBySellerId(Long sellerId) {
         List<Map<String, Object>> result = new ArrayList<>();
-        List<Product> products = productRepository.findByStoreSellerId(sellerId);
+        List<Product> products = productRepository.findByStoreSellerProfileUserId(sellerId);
         for (Product p : products) {
             Map<String, Object> m = new HashMap<>();
             m.put("productId", p.getId());
@@ -990,11 +987,13 @@ public class ProductServiceImpl implements ProductService {
     @PreAuthorize("hasRole('ADMIN') or (hasRole('SELLER') and #sellerId == principal.id)")
     public SellerProductDashboard getSellerDashboard(Long sellerId, int topProductsLimit) {
         // Example implementation (replace with real queries as needed)
-        long totalProducts = productRepository.countByStoreSellerId(sellerId);
-        long activeProducts = productRepository.countByStoreSellerIdAndStatus(sellerId, ProductStatus.ACTIVE);
-        long outOfStock = productRepository.countByStoreSellerIdAndStockQuantity(sellerId, 0);
-        long lowStock = productRepository.countByStoreSellerIdAndStockQuantityLessThan(sellerId, LOW_STOCK_THRESHOLD);
-        long featuredProducts = productRepository.countByStoreSellerIdAndFeaturedTrue(sellerId);
+        long totalProducts = productRepository.countByStoreSellerProfileUserId(sellerId);
+        long activeProducts = productRepository.countByStoreSellerProfileUserIdAndStatus(sellerId,
+                ProductStatus.ACTIVE);
+        long outOfStock = productRepository.countByStoreSellerProfileUserIdAndStockQuantity(sellerId, 0);
+        long lowStock = productRepository.countByStoreSellerProfileUserIdAndStockQuantityLessThan(sellerId,
+                LOW_STOCK_THRESHOLD);
+        long featuredProducts = productRepository.countByStoreSellerProfileUserIdAndFeaturedTrue(sellerId);
         long totalInventoryUnits = productRepository.sumStockQuantityBySellerId(sellerId);
         double avgStock = totalProducts > 0 ? (double) totalInventoryUnits / totalProducts : 0.0;
         BigDecimal totalInventoryValue = productRepository.sumInventoryValueBySellerId(sellerId);
@@ -1006,8 +1005,10 @@ public class ProductServiceImpl implements ProductService {
         // Top rated products (mock)
         List<SellerProductDashboard.TopRatedProduct> topRated = Collections.emptyList();
         LocalDateTime now = LocalDateTime.now();
-        long productsAdded30d = productRepository.countByStoreSellerIdAndCreatedAtAfter(sellerId, now.minusDays(30));
-        long productsUpdated30d = productRepository.countByStoreSellerIdAndUpdatedAtAfter(sellerId, now.minusDays(30));
+        long productsAdded30d = productRepository.countByStoreSellerProfileUserIdAndCreatedAtAfter(sellerId,
+                now.minusDays(30));
+        long productsUpdated30d = productRepository.countByStoreSellerProfileUserIdAndUpdatedAtAfter(sellerId,
+                now.minusDays(30));
         return SellerProductDashboard.builder()
                 .sellerId(sellerId)
                 .totalProducts(totalProducts)
@@ -1042,7 +1043,7 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional(readOnly = true)
-    @PreAuthorize("hasAnyRole('ADMIN','SELLER')")
+    @PreAuthorize("hasAnyRole('ADMIN','SELLER','CUSTOMER')")
     public List<TopSellingProductResponse> getTopSellingProducts(int limit) {
         List<Product> products = productRepository.findTopSellingProducts(PageRequest.of(0, limit));
         // Map to DTOs (mock sales data)
@@ -1071,7 +1072,9 @@ public class ProductServiceImpl implements ProductService {
                     .stockStatus(p.getStockQuantity() == 0 ? "OUT_OF_STOCK"
                             : (p.getStockQuantity() < LOW_STOCK_THRESHOLD ? "LOW_STOCK" : "IN_STOCK"))
                     .sellerId(
-                            p.getStore() != null && p.getStore().getSeller() != null ? p.getStore().getSeller().getId()
+                            p.getStore() != null && p.getStore().getSellerProfile() != null
+                                    && p.getStore().getSellerProfile().getUser() != null
+                                            ? p.getStore().getSellerProfile().getUser().getId()
                                     : null)
                     .storeName(p.getStore() != null ? p.getStore().getStoreName() : null)
                     .build());
@@ -1087,33 +1090,14 @@ public class ProductServiceImpl implements ProductService {
      * @return paginated product responses
      */
     @Transactional(readOnly = true)
-    @PreAuthorize("hasAnyRole('ADMIN','SELLER','CUSTOMER','DELIVERY_AGENT')")
+    @PreAuthorize("permitAll()")
     public PageResponse<ProductResponse> fullTextSearch(String query, Pageable pageable) {
         var page = productRepository.fullTextSearch(query, pageable);
         return PageResponse.of(page, productMapper::toProductResponse);
     }
 
-    // Helper method to get primary image URL using non-deprecated methods
+    // Delegates to ProductMapper.getPrimaryImageUrl() to avoid duplication.
     private String getPrimaryImageUrl(Product product) {
-        if (product == null) {
-            return null;
-        }
-        if (product.getPrimaryImage() != null) {
-            return product.getPrimaryImage().getUrl();
-        }
-        // Safely check images collection initialization to avoid
-        // LazyInitializationException
-        try {
-            if (product.getImages() != null && org.hibernate.Hibernate.isInitialized(product.getImages())
-                    && !product.getImages().isEmpty()) {
-                com.eshop.app.entity.ProductImage img = product.getImages().get(0);
-                if (img != null && img.getUrl() != null) {
-                    return img.getUrl();
-                }
-            }
-        } catch (Exception e) {
-            // ignore and return null
-        }
-        return null;
+        return productMapper.getPrimaryImageUrl(product);
     }
 }

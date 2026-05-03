@@ -1751,17 +1751,17 @@ public class Product {
     }
 
     /**
-     * Recalculates popularity score based on various factors.
+     * Recalculates popularity score based on various factors and weights.
      */
-    public void recalculatePopularityScore() {
+    public void recalculatePopularityScore(double purchaseWeight, double viewWeight, double ratingWeight,
+            double wishlistWeight) {
         double score = 0.0;
 
-        // Weight: purchases (40%), views (20%), rating (25%), wishlist (15%)
-        score += (purchaseCount != null ? purchaseCount : 0) * 0.4;
-        score += (viewCount != null ? viewCount : 0) * 0.02; // Views have lower individual weight
+        score += (purchaseCount != null ? purchaseCount : 0) * purchaseWeight;
+        score += (viewCount != null ? viewCount : 0) * viewWeight;
         score += (averageRating != null ? averageRating.doubleValue() : 0) * 5 * (reviewCount != null ? reviewCount : 0)
-                * 0.25;
-        score += (wishlistCount != null ? wishlistCount : 0) * 0.15;
+                * ratingWeight;
+        score += (wishlistCount != null ? wishlistCount : 0) * wishlistWeight;
 
         this.popularityScore = score;
     }

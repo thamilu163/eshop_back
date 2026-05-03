@@ -32,7 +32,7 @@ import java.util.List;
  * All endpoints require authentication via JWT Bearer token
  * Role-based access control applied per endpoint
  */
-@Tag(name = "Shipping", description = "Shipping and delivery management endpoints")
+@Tag(name = "Shippings", description = "Shipping and delivery management - Track orders, update status, calculate costs")
 @RestController
 @RequestMapping(ApiConstants.Endpoints.SHIPPING)
 public class ShippingController {

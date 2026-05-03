@@ -20,10 +20,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
+import java.util.*;
+import org.springframework.beans.factory.annotation.Value;
 
 @Service
 @Transactional
@@ -36,6 +34,9 @@ public class OrderServiceImpl implements OrderService {
     @SuppressWarnings("unused") // Reserved for future order item operations
     private final OrderItemRepository orderItemRepository;
     private final EntityMapper entityMapper;
+
+    @Value("${app.business.default-tax-rate:0.10}")
+    private BigDecimal defaultTaxRate;
 
     public OrderServiceImpl(OrderRepository orderRepository,
             CartRepository cartRepository,
@@ -98,6 +99,7 @@ public class OrderServiceImpl implements OrderService {
         // Create order items and calculate totals
         Set<OrderItem> orderItems = new HashSet<>();
         BigDecimal totalAmount = BigDecimal.ZERO;
+        List<Product> productsToUpdate = new ArrayList<>();
 
         for (CartItem cartItem : cart.getItems()) {
             Product product = cartItem.getProduct();
@@ -113,15 +115,20 @@ public class OrderServiceImpl implements OrderService {
             orderItems.add(orderItem);
             totalAmount = totalAmount.add(orderItem.getPrice().multiply(BigDecimal.valueOf(orderItem.getQuantity())));
 
-            // Update product stock
+            // Update product stock (batch later)
             product.setStockQuantity(product.getStockQuantity() - cartItem.getQuantity());
-            productRepository.save(product);
+            productsToUpdate.add(product);
+        }
+
+        // Batch save product stock updates (N+1 Writes Fix)
+        if (!productsToUpdate.isEmpty()) {
+            productRepository.saveAll(productsToUpdate);
         }
 
         order.setItems(orderItems);
         order.setTotalAmount(totalAmount);
         order.setShippingAmount(BigDecimal.valueOf(10.00)); // Fixed shipping
-        order.setTaxAmount(totalAmount.multiply(BigDecimal.valueOf(0.1))); // 10% tax
+        order.setTaxAmount(totalAmount.multiply(defaultTaxRate)); // Dynamic tax based on property
 
         order = orderRepository.save(order);
 
@@ -154,20 +161,14 @@ public class OrderServiceImpl implements OrderService {
     public PageResponse<OrderResponse> getMyOrders(Pageable pageable) {
         Long userId = getCurrentUserId();
         Page<Order> orderPage = orderRepository.findByCustomerId(userId, pageable);
-        List<OrderResponse> orders = orderPage.getContent().stream()
-                .map(entityMapper::toOrderResponse)
-                .collect(Collectors.toList());
-        return entityMapper.toPageResponse(orderPage, orders);
+        return PageResponse.of(orderPage, entityMapper::toOrderResponse);
     }
 
     @Override
     @Transactional(readOnly = true)
     public PageResponse<OrderResponse> getAllOrders(Pageable pageable) {
         Page<Order> orderPage = orderRepository.findAll(pageable);
-        List<OrderResponse> orders = orderPage.getContent().stream()
-                .map(entityMapper::toOrderResponse)
-                .collect(Collectors.toList());
-        return entityMapper.toPageResponse(orderPage, orders);
+        return PageResponse.of(orderPage, entityMapper::toOrderResponse);
     }
 
     @Override
@@ -175,20 +176,14 @@ public class OrderServiceImpl implements OrderService {
     public PageResponse<OrderResponse> getOrdersByStatus(String status, Pageable pageable) {
         Order.OrderStatus orderStatus = Order.OrderStatus.valueOf(status.toUpperCase());
         Page<Order> orderPage = orderRepository.findByOrderStatus(orderStatus, pageable);
-        List<OrderResponse> orders = orderPage.getContent().stream()
-                .map(entityMapper::toOrderResponse)
-                .collect(Collectors.toList());
-        return entityMapper.toPageResponse(orderPage, orders);
+        return PageResponse.of(orderPage, entityMapper::toOrderResponse);
     }
 
     @Override
     @Transactional(readOnly = true)
     public PageResponse<OrderResponse> getOrdersByStore(Long storeId, Pageable pageable) {
         Page<Order> orderPage = orderRepository.findByStoreId(storeId, pageable);
-        List<OrderResponse> orders = orderPage.getContent().stream()
-                .map(entityMapper::toOrderResponse)
-                .collect(Collectors.toList());
-        return entityMapper.toPageResponse(orderPage, orders);
+        return PageResponse.of(orderPage, entityMapper::toOrderResponse);
     }
 
     @Override
@@ -238,10 +233,7 @@ public class OrderServiceImpl implements OrderService {
     public PageResponse<OrderResponse> getDeliveryAgentOrders(Pageable pageable) {
         Long agentId = getCurrentUserId();
         Page<Order> orderPage = orderRepository.findByDeliveryAgentId(agentId, pageable);
-        List<OrderResponse> orders = orderPage.getContent().stream()
-                .map(entityMapper::toOrderResponse)
-                .collect(Collectors.toList());
-        return entityMapper.toPageResponse(orderPage, orders);
+        return PageResponse.of(orderPage, entityMapper::toOrderResponse);
     }
 
     @Override
@@ -249,10 +241,7 @@ public class OrderServiceImpl implements OrderService {
     public PageResponse<OrderResponse> getSellerOrders(Pageable pageable) {
         Long sellerId = getCurrentUserId();
         Page<Order> orderPage = orderRepository.findByStoreSellerId(sellerId, pageable);
-        List<OrderResponse> orders = orderPage.getContent().stream()
-                .map(entityMapper::toOrderResponse)
-                .collect(Collectors.toList());
-        return entityMapper.toPageResponse(orderPage, orders);
+        return PageResponse.of(orderPage, entityMapper::toOrderResponse);
     }
 
     @Override
@@ -331,12 +320,13 @@ public class OrderServiceImpl implements OrderService {
 
         // Create order items and update stock
         Set<OrderItem> orderItems = new HashSet<>();
+        List<Product> productsToUpdate = new ArrayList<>();
         for (CartItem cartItem : cart.getItems()) {
             Product product = cartItem.getProduct();
 
-            // Update product stock
+            // Update product stock (batch later)
             product.setStockQuantity(product.getStockQuantity() - cartItem.getQuantity());
-            productRepository.save(product);
+            productsToUpdate.add(product);
 
             // Create order item
             OrderItem orderItem = new OrderItem();
@@ -347,6 +337,11 @@ public class OrderServiceImpl implements OrderService {
             orderItem.setSubtotal(product.getPrice().multiply(BigDecimal.valueOf(cartItem.getQuantity())));
 
             orderItems.add(orderItem);
+        }
+
+        // Batch save product stock updates (N+1 Writes Fix)
+        if (!productsToUpdate.isEmpty()) {
+            productRepository.saveAll(productsToUpdate);
         }
 
         order.setItems(orderItems);
@@ -375,8 +370,8 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional(readOnly = true)
     public long getTodayOrderCount() {
-        java.time.LocalDateTime startOfDay = java.time.LocalDateTime.now().withHour(0).withMinute(0).withSecond(0);
-        return orderRepository.countOrdersBetweenDates(startOfDay, java.time.LocalDateTime.now());
+        return orderRepository.countOrdersBetweenDates(com.eshop.app.util.DateTimeUtils.startOfDay(),
+                java.time.LocalDateTime.now());
     }
 
     @Override
@@ -389,9 +384,8 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional(readOnly = true)
     public BigDecimal getMonthlyRevenue() {
-        java.time.LocalDateTime startOfMonth = java.time.LocalDateTime.now().withDayOfMonth(1).withHour(0).withMinute(0)
-                .withSecond(0);
-        BigDecimal total = orderRepository.sumRevenueBetweenDates(startOfMonth, java.time.LocalDateTime.now());
+        BigDecimal total = orderRepository.sumRevenueBetweenDates(
+                com.eshop.app.util.DateTimeUtils.startOfMonth(), java.time.LocalDateTime.now());
         return total != null ? total : BigDecimal.ZERO;
     }
 
@@ -399,23 +393,22 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional(readOnly = true)
     public BigDecimal getTodayRevenueBySellerId(Long sellerId) {
-        java.time.LocalDateTime startOfDay = java.time.LocalDateTime.now().withHour(0).withMinute(0).withSecond(0);
-        return orderRepository.sumRevenueBySellerIdBetweenDates(sellerId, startOfDay, java.time.LocalDateTime.now());
+        return orderRepository.sumRevenueBySellerIdBetweenDates(sellerId,
+                com.eshop.app.util.DateTimeUtils.startOfDay(), java.time.LocalDateTime.now());
     }
 
     @Override
     @Transactional(readOnly = true)
     public BigDecimal getWeeklyRevenueBySellerId(Long sellerId) {
-        java.time.LocalDateTime startOfWeek = java.time.LocalDateTime.now().minusWeeks(1);
-        return orderRepository.sumRevenueBySellerIdBetweenDates(sellerId, startOfWeek, java.time.LocalDateTime.now());
+        return orderRepository.sumRevenueBySellerIdBetweenDates(sellerId,
+                com.eshop.app.util.DateTimeUtils.startOfWeek(), java.time.LocalDateTime.now());
     }
 
     @Override
     @Transactional(readOnly = true)
     public BigDecimal getMonthlyRevenueBySellerId(Long sellerId) {
-        java.time.LocalDateTime startOfMonth = java.time.LocalDateTime.now().withDayOfMonth(1).withHour(0).withMinute(0)
-                .withSecond(0);
-        return orderRepository.sumRevenueBySellerIdBetweenDates(sellerId, startOfMonth, java.time.LocalDateTime.now());
+        return orderRepository.sumRevenueBySellerIdBetweenDates(sellerId,
+                com.eshop.app.util.DateTimeUtils.startOfMonth(), java.time.LocalDateTime.now());
     }
 
     @Override
@@ -451,55 +444,55 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional(readOnly = true)
-    public java.util.List<java.util.Map<String, Object>> getRecentOrdersBySellerId(Long sellerId, int limit) {
+    public List<Map<String, Object>> getRecentOrdersBySellerId(Long sellerId, int limit) {
         return orderRepository
                 .findRecentOrdersBySellerId(sellerId, org.springframework.data.domain.PageRequest.of(0, limit))
                 .stream()
                 .map(o -> {
-                    java.util.Map<String, Object> map = new java.util.HashMap<>();
+                    Map<String, Object> map = new HashMap<>();
                     map.put("orderNumber", o.getOrderNumber());
                     map.put("status", o.getOrderStatus().toString());
                     map.put("totalAmount", o.getTotalAmount());
                     map.put("createdAt", o.getCreatedAt());
                     return map;
                 })
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
     @Transactional(readOnly = true)
-    public java.util.List<java.util.Map<String, Object>> getDailySalesData() {
-        return new java.util.ArrayList<>(); // To be implemented
+    public List<Map<String, Object>> getDailySalesData() {
+        return new ArrayList<>(); // To be implemented
     }
 
     @Override
     @Transactional(readOnly = true)
-    public java.util.List<java.util.Map<String, Object>> getMonthlySalesData() {
-        return new java.util.ArrayList<>(); // To be implemented
+    public List<Map<String, Object>> getMonthlySalesData() {
+        return new ArrayList<>(); // To be implemented
     }
 
     @Override
     @Transactional(readOnly = true)
-    public java.util.Map<String, BigDecimal> getRevenueByCategory() {
-        return new java.util.HashMap<>(); // To be implemented
+    public Map<String, BigDecimal> getRevenueByCategory() {
+        return new HashMap<>(); // To be implemented
     }
 
     @Override
     @Transactional(readOnly = true)
-    public java.util.List<java.util.Map<String, Object>> getSalesTrendBySellerId(Long sellerId) {
-        return new java.util.ArrayList<>(); // To be implemented
+    public List<Map<String, Object>> getSalesTrendBySellerId(Long sellerId) {
+        return new ArrayList<>(); // To be implemented
     }
 
     @Override
     @Transactional(readOnly = true)
-    public java.util.Map<String, Object> getCustomerDemographicsBySellerId(Long sellerId) {
-        return new java.util.HashMap<>(); // To be implemented
+    public Map<String, Object> getCustomerDemographicsBySellerId(Long sellerId) {
+        return new HashMap<>(); // To be implemented
     }
 
     @Override
     @Transactional(readOnly = true)
-    public java.util.Map<String, BigDecimal> getRevenueBreakdownBySellerId(Long sellerId) {
-        java.util.Map<String, BigDecimal> breakdown = new java.util.HashMap<>();
+    public Map<String, BigDecimal> getRevenueBreakdownBySellerId(Long sellerId) {
+        Map<String, BigDecimal> breakdown = new HashMap<>();
         breakdown.put("totalRevenue", getTotalRevenueBySellerId(sellerId));
         breakdown.put("monthlyRevenue", getMonthlyRevenueBySellerId(sellerId));
         breakdown.put("weeklyRevenue", getWeeklyRevenueBySellerId(sellerId));
@@ -510,17 +503,17 @@ public class OrderServiceImpl implements OrderService {
     // Delivery Agent-specific dashboard method implementation
     @Override
     @Transactional(readOnly = true)
-    public java.util.List<java.util.Map<String, Object>> getRecentDeliveriesByAgentId(Long agentId, int limit) {
+    public List<Map<String, Object>> getRecentDeliveriesByAgentId(Long agentId, int limit) {
         return orderRepository
                 .findByDeliveryAgentIdOrderByCreatedAtDesc(agentId,
                         org.springframework.data.domain.PageRequest.of(0, limit))
                 .stream()
-                .map(o -> java.util.Map.<String, Object>of(
+                .map(o -> Map.<String, Object>of(
                         "orderNumber", o.getOrderNumber(),
                         "status", o.getOrderStatus().toString(),
                         "totalAmount", o.getTotalAmount(),
                         "createdAt", o.getCreatedAt()))
-                .collect(Collectors.toList());
+                .toList();
     }
 
     // Additional Delivery Agent dashboard methods
@@ -533,8 +526,8 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional(readOnly = true)
     public long getTodayDeliveriesByAgentId(Long agentId) {
-        java.time.LocalDateTime startOfDay = java.time.LocalDateTime.now().withHour(0).withMinute(0).withSecond(0);
-        return orderRepository.countByDeliveryAgentIdAndCreatedAtAfter(agentId, startOfDay);
+        return orderRepository.countByDeliveryAgentIdAndCreatedAtAfter(agentId,
+                com.eshop.app.util.DateTimeUtils.startOfDay());
     }
 
     @Override
@@ -552,26 +545,22 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional(readOnly = true)
     public long getCompletedDeliveriesTodayByAgentId(Long agentId) {
-        java.time.LocalDateTime startOfDay = java.time.LocalDateTime.now().withHour(0).withMinute(0).withSecond(0);
         return orderRepository.countByDeliveryAgentIdAndOrderStatusAndCreatedAtAfter(agentId,
-                Order.OrderStatus.DELIVERED, startOfDay);
+                Order.OrderStatus.DELIVERED, com.eshop.app.util.DateTimeUtils.startOfDay());
     }
 
     @Override
     @Transactional(readOnly = true)
     public long getCompletedDeliveriesThisWeekByAgentId(Long agentId) {
-        java.time.LocalDateTime startOfWeek = java.time.LocalDateTime.now().minusWeeks(1);
         return orderRepository.countByDeliveryAgentIdAndOrderStatusAndCreatedAtAfter(agentId,
-                Order.OrderStatus.DELIVERED, startOfWeek);
+                Order.OrderStatus.DELIVERED, com.eshop.app.util.DateTimeUtils.startOfWeek());
     }
 
     @Override
     @Transactional(readOnly = true)
     public long getCompletedDeliveriesThisMonthByAgentId(Long agentId) {
-        java.time.LocalDateTime startOfMonth = java.time.LocalDateTime.now().withDayOfMonth(1).withHour(0).withMinute(0)
-                .withSecond(0);
         return orderRepository.countByDeliveryAgentIdAndOrderStatusAndCreatedAtAfter(agentId,
-                Order.OrderStatus.DELIVERED, startOfMonth);
+                Order.OrderStatus.DELIVERED, com.eshop.app.util.DateTimeUtils.startOfMonth());
     }
 
     @Override
@@ -610,14 +599,14 @@ public class OrderServiceImpl implements OrderService {
                 org.springframework.data.domain.PageRequest.of(0, limit));
         return orders.stream()
                 .map(o -> {
-                    java.util.Map<String, Object> map = new java.util.HashMap<>();
+                    Map<String, Object> map = new HashMap<>();
                     map.put("orderNumber", o.getOrderNumber());
                     map.put("status", o.getOrderStatus().toString());
                     map.put("totalAmount", o.getTotalAmount());
                     map.put("createdAt", o.getCreatedAt());
                     return map;
                 })
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override

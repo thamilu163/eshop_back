@@ -13,7 +13,11 @@ public class ProductReviewMapper {
                 .productId(review.getProduct().getId())
                 .productName(review.getProduct().getName())
                 .userId(review.getUser().getId())
-                .userName(review.getUser().getFirstName() + " " + review.getUser().getLastName())
+                .userName(
+                        review.getUser().getUserProfile() != null
+                                ? review.getUser().getUserProfile().getFirstName() + " "
+                                        + review.getUser().getUserProfile().getLastName()
+                                : review.getUser().getUsername())
                 .rating(review.getRating())
                 .comment(review.getComment())
                 .verifiedPurchase(review.getVerifiedPurchase())

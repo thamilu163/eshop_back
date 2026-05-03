@@ -11,6 +11,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import com.fasterxml.jackson.annotation.JsonAlias;
 
 @Data
 @Builder
@@ -48,14 +49,11 @@ public class RegisterRequest {
     @Size(max = 100, message = "Last name must not exceed 100 characters")
     @Schema(description = "User's last name", example = "Doe", requiredMode = Schema.RequiredMode.REQUIRED)
     private String lastName;
-
-    @Size(max = 100, message = "Display name must not exceed 100 characters")
-    @Schema(description = "Online display identity name (optional)", example = "Green Valley Farms")
-    private String displayName;
     
     @NotBlank(message = "Mobile number is required")
     @Size(max = 20, message = "Phone must not exceed 20 characters")
     @Schema(description = "Contact phone number", example = "+1-234-567-8900", requiredMode = Schema.RequiredMode.REQUIRED)
+    @JsonAlias("mobileNumber")
     private String phone;
     
     @Schema(description = "Full address for delivery or contact", example = "123 Green Valley, Rural Route 5, Farmville")

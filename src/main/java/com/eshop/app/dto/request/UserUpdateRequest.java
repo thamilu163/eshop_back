@@ -7,6 +7,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import com.fasterxml.jackson.annotation.JsonAlias;
 
 @Data
 @Builder
@@ -27,6 +28,7 @@ public class UserUpdateRequest {
     private String email;
     
     @Size(max = 20, message = "Phone must not exceed 20 characters")
+    @JsonAlias("mobileNumber")
     private String phone;
     
     @Size(max = 500, message = "Address must not exceed 500 characters")

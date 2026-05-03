@@ -4,6 +4,7 @@ import com.eshop.app.config.properties.SeedProperties;
 import com.eshop.app.dto.auth.RegisterRequest;
 import com.eshop.app.entity.User;
 import com.eshop.app.repository.UserRepository;
+import com.eshop.app.repository.SellerProfileRepository;
 import com.eshop.app.seed.core.Seeder;
 import com.eshop.app.seed.core.SeederContext;
 import com.eshop.app.seed.exception.UserSeedingException;
@@ -14,14 +15,10 @@ import lombok.extern.slf4j.Slf4j;
 import com.eshop.app.enums.UserRole;
 import org.springframework.core.annotation.Order;
 import org.springframework.dao.DataAccessException;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
-import java.util.function.Function;
-import java.util.stream.Collectors;
-
-import reactor.core.publisher.Mono;
+import java.util.Map;
 
 /**
  * User seeder - First in execution order.
@@ -36,7 +33,7 @@ import reactor.core.publisher.Mono;
 public class UserSeeder implements Seeder<User, SeederContext> {
 
     private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
+    private final SellerProfileRepository sellerProfileRepository;
     private final SecurePasswordGenerator passwordGenerator;
     private final SeedProperties seedProperties;
     private final KeycloakAdminService keycloakAdminService;
@@ -48,19 +45,30 @@ public class UserSeeder implements Seeder<User, SeederContext> {
         if (!seedProperties.isUsersEnabled()) {
             log.info("User seeding disabled. Loading existing users into context...");
             List<User> existingUsers = userRepository.findAll();
-            populateContext(context, existingUsers);
+            // Skipping context population as username is no longer in local DB
             return existingUsers;
         }
 
         try {
-            List<User> users = seedProperties.getUsers().stream()
-                    .map(this::processAndBuildUser)
-                    .toList();
+            List<User> savedUsers = new java.util.ArrayList<>();
+            java.util.Map<String, User> contextMap = new java.util.HashMap<>();
 
-            List<User> savedUsers = userRepository.saveAll(users);
-            populateContext(context, savedUsers);
+            for (SeedProperties.UserSeed cfg : seedProperties.getUsers()) {
+                try {
+                    User user = processAndBuildUser(cfg);
+                    savedUsers.add(user);
+                    contextMap.put(cfg.getUsername(), user);
+                } catch (Exception e) {
+                    log.error("Failed to process seed user '{}': {}. Skipping...", cfg.getUsername(), e.getMessage());
+                }
+            }
 
-            log.info("Seeded {} users successfully to Local DB and Keycloak", savedUsers.size());
+            if (!savedUsers.isEmpty()) {
+                userRepository.saveAll(savedUsers);
+                log.info("Seeded {} users successfully to Local DB and Keycloak", savedUsers.size());
+            } else {
+                log.warn("No users were seeded!");
+            }
             return savedUsers;
 
         } catch (DataAccessException e) {
@@ -72,10 +80,8 @@ public class UserSeeder implements Seeder<User, SeederContext> {
         }
     }
 
-    private void populateContext(SeederContext context, List<User> users) {
-        context.setUsers(users.stream()
-                .collect(Collectors.toMap(User::getUsername, Function.identity())));
-    }
+    // Context is now populated directly in seed() to maintain mapping to
+    // cfg.username
 
     @Override
     public void cleanup() {
@@ -87,6 +93,7 @@ public class UserSeeder implements Seeder<User, SeederContext> {
         try {
             // Note: We only clean up local DB. Cleaning up Keycloak is risky/complex for
             // dev
+            sellerProfileRepository.deleteAllInBatch(); // Clean up seller profiles first
             userRepository.deleteAllInBatch();
             log.debug("Cleaned up existing users from Local DB");
         } catch (Exception e) {
@@ -115,24 +122,35 @@ public class UserSeeder implements Seeder<User, SeederContext> {
         }
 
         // 2. Create in Keycloak
-        createKeycloakUser(cfg, rawPassword);
+        Map<String, String> keycloakResult = createKeycloakUser(cfg, rawPassword);
+        String keycloakId = keycloakResult != null ? keycloakResult.get("id") : "unknown-" + cfg.getUsername();
 
-        // 3. Build Local Entity
-        return User.builder()
-                .username(cfg.getUsername())
-                .email(cfg.getEmail())
-                .password(passwordEncoder.encode(rawPassword)) // We still hash it locally even if unused for login
+        User user = User.builder()
+                .keycloakId(keycloakId)
+                .role(parseRole(cfg.getRole()))
+                .build();
+
+        com.eshop.app.entity.UserProfile profile = com.eshop.app.entity.UserProfile.builder()
                 .firstName(cfg.getFirstName())
                 .lastName(cfg.getLastName())
                 .phone(cfg.getPhone())
-                .address(cfg.getAddress())
-                .role(parseRole(cfg.getRole()))
-                .active(true)
-                .emailVerified(true) // Keycloak handles this, but we mark local as verified
+                .user(user)
                 .build();
+
+        if (cfg.getAddress() != null && !cfg.getAddress().isBlank()) {
+            com.eshop.app.entity.UserAddress address = com.eshop.app.entity.UserAddress.builder()
+                    .userProfile(profile)
+                    .addressLine1(cfg.getAddress())
+                    .isDefault(true)
+                    .build();
+            profile.setAddresses(new java.util.ArrayList<>(java.util.List.of(address)));
+        }
+        user.setUserProfile(profile);
+
+        return user;
     }
 
-    private void createKeycloakUser(SeedProperties.UserSeed cfg, String password) {
+    private Map<String, String> createKeycloakUser(SeedProperties.UserSeed cfg, String password) {
         try {
             RegisterRequest request = RegisterRequest.builder()
                     .username(cfg.getUsername())
@@ -144,15 +162,24 @@ public class UserSeeder implements Seeder<User, SeederContext> {
                     .build();
 
             // We use block() here because Seeding is a startup sync process
-            keycloakAdminService.createUser(request)
-                    .doOnError(e -> log.warn("Keycloak user creation warning for {}: {}", cfg.getUsername(),
-                            e.getMessage()))
-                    .onErrorResume(e -> Mono.empty()) // Continue even if user exists
+            return keycloakAdminService.createUser(request)
+                    .doOnError(
+                            e -> log.debug("User already exists or error creating in Keycloak: {}", cfg.getUsername()))
+                    .onErrorResume(e -> {
+                        return keycloakAdminService.getUserByUsername(cfg.getUsername())
+                                .map(userMap -> {
+                                    Map<String, String> res = new java.util.HashMap<>();
+                                    res.put("id", (String) userMap.get("id"));
+                                    res.put("username", cfg.getUsername());
+                                    return res;
+                                });
+                    })
                     .block();
 
         } catch (Exception e) {
             // Log but don't fail the whole seeding - user might already exist
-            log.warn("Failed to create Keycloak user '{}': {}", cfg.getUsername(), e.getMessage());
+            log.warn("Failed to create/resolve Keycloak user '{}': {}", cfg.getUsername(), e.getMessage());
+            return null;
         }
     }
 

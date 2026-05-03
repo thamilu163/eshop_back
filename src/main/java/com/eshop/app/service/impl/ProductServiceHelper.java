@@ -51,7 +51,7 @@ public class ProductServiceHelper {
         
         Product.ProductBuilder builder = Product.builder()
             .name(request.getName())
-            .description(request.getDescription())  // Already validated with @NoHtml
+                .description(sanitize(request.getDescription()))
             .sku(request.getSku())
             .friendlyUrl(friendlyUrl)
             .price(request.getPrice())
@@ -222,5 +222,15 @@ public class ProductServiceHelper {
             stringMap.put(entry.getKey(), entry.getValue() != null ? entry.getValue().toString() : null);
         }
         return stringMap;
+    }
+
+    /**
+     * Sanitize string content by HTML escaping.
+     */
+    public String sanitize(String content) {
+        if (content == null) {
+            return null;
+        }
+        return org.springframework.web.util.HtmlUtils.htmlEscape(content);
     }
 }

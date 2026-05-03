@@ -1,5 +1,7 @@
 package com.eshop.app.config;
 
+import com.eshop.app.config.properties.AppProperties;
+import com.eshop.app.config.properties.SwaggerProperties;
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Contact;
@@ -11,46 +13,53 @@ import io.swagger.v3.oas.models.security.Scopes;
 import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.swagger.v3.oas.models.security.SecurityScheme;
 import io.swagger.v3.oas.models.servers.Server;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import java.util.List;
+import java.util.Optional;
 
 @Slf4j
 @Configuration
+@RequiredArgsConstructor
 public class OpenApiConfig {
 
-    @Value("${spring.security.oauth2.resourceserver.jwt.issuer-uri:http://localhost:8080/realms/eshop}")
-    private String issuerUri;
-
-    @Value("${server.port:8082}")
-    private int serverPort;
+        private final AppProperties appProperties;
+        private final SwaggerProperties swaggerProperties;
 
     @Bean
     public OpenAPI customOpenAPI() {
-        log.info("OpenAPI documentation enabled with OAuth2 and Bearer JWT authentication");
+            log.info("OpenAPI documentation enabled with dynamic configuration");
+
+            AppProperties.Openapi openapi = appProperties.getOpenapi();
+            if (!openapi.isEnabled()) {
+                    return new OpenAPI().info(new Info().title("Disabled"));
+            }
 
         final String oauth2SchemeName = "oauth2";
         final String bearerJwtSchemeName = "bearer-jwt";
-        final String authorizationUrl = issuerUri + "/protocol/openid-connect/auth";
-        final String tokenUrl = issuerUri + "/protocol/openid-connect/token";
+
+        final String authorizationUrl = appProperties.getSwagger().getSecurity().getAuthorizationUrl();
+        final String tokenUrl = appProperties.getSwagger().getSecurity().getTokenUrl();
+
+        String serverUrl = Optional.ofNullable(appProperties.getBackendUrl())
+                        .filter(s -> !s.isBlank())
+                        .orElseThrow(() -> new IllegalStateException(
+                                        "Backend Server URL must be configured via APP_BACKEND_URL"));
 
         return new OpenAPI()
                 .info(apiInfo())
-                .servers(List.of(new Server().url("http://localhost:" + serverPort).description("Development Server")))
-                // Global security requirements - endpoints can use either OAuth2 or direct JWT
+                        .servers(List.of(new Server().url(serverUrl).description("API Server")))
                 .addSecurityItem(new SecurityRequirement().addList(oauth2SchemeName))
                 .addSecurityItem(new SecurityRequirement().addList(bearerJwtSchemeName))
-                .components(new Components()
-                        // OAuth2 Security Scheme (Keycloak Authorization Code Flow)
+                        .components(new Components()
                         .addSecuritySchemes(oauth2SchemeName,
                                 new SecurityScheme()
                                         .name(oauth2SchemeName)
                                         .type(SecurityScheme.Type.OAUTH2)
-                                        .description(
-                                                "OAuth2 Authentication with Keycloak - Use 'Authorize' button to login")
+                                                                        .description("OAuth2 Authentication")
                                         .flows(new OAuthFlows()
                                                 .authorizationCode(new OAuthFlow()
                                                         .authorizationUrl(authorizationUrl)
@@ -58,8 +67,8 @@ public class OpenApiConfig {
                                                         .scopes(new Scopes()
                                                                 .addString("openid", "OpenID Connect")
                                                                 .addString("profile", "User profile")
-                                                                .addString("email", "User email")))))
-                        // Bearer JWT Security Scheme (Direct Token)
+                                                                                                                        .addString("email",
+                                                                                                                                        "User email")))))
                         .addSecuritySchemes(bearerJwtSchemeName,
                                 new SecurityScheme()
                                         .name(bearerJwtSchemeName)
@@ -70,11 +79,20 @@ public class OpenApiConfig {
     }
 
     private Info apiInfo() {
+            SwaggerProperties.ApiInfo apiInfo = swaggerProperties.getApiInfo();
+            SwaggerProperties.Contact contact = apiInfo.getContact();
+            SwaggerProperties.LicenseInfo license = apiInfo.getLicense();
+
         return new Info()
-                .title("E-Shop REST API")
-                .description("Enterprise E-Commerce Platform API Documentation")
-                .version("1.0.0")
-                .contact(new Contact().name("API Support").email("support@eshop.com").url("https://eshop.com/support"))
-                .license(new License().name("Apache 2.0").url("https://www.apache.org/licenses/LICENSE-2.0"));
+                        .title(apiInfo.getTitle())
+                        .description(apiInfo.getDescription())
+                        .version(apiInfo.getVersion())
+                        .contact(new Contact()
+                                        .name(contact.getName())
+                                        .email(contact.getEmail())
+                                        .url(contact.getUrl()))
+                        .license(new License()
+                                        .name(license.getName())
+                                        .url(license.getUrl()));
     }
 }

@@ -54,14 +54,48 @@ public class CodeBasedCategoryDataProvider implements CategoryDataProvider {
 
         return List.of(
                 // Fashion & Apparel
-                of("Fashion & Apparel",
-                        withChildren("Men", "T-Shirts", "Shirts", "Jeans & Trousers", "Ethnic Wear",
-                                "Innerwear & Sleepwear"),
-                        withChildren("Women", "Tops & T-Shirts", "Dresses", "Sarees & Kurtis", "Jeans & Leggings",
-                                "Innerwear"),
-                        withChildren("Kids", "Boys Clothing", "Girls Clothing", "Infant Wear"),
-                        withChildren("Footwear", "Casual Shoes", "Sports Shoes", "Formal Shoes", "Sandals & Slippers"),
-                        withChildren("Accessories", "Bags & Wallets", "Belts", "Watches", "Sunglasses", "Jewelry")),
+                        // Fashion (Re-structured as per Enterprise Standards)
+                        of("Fashion",
+                                        // Men
+                                        of("Men",
+                                                        withChildren("Clothing", "T-Shirts", "Shirts", "Jeans",
+                                                                        "Trousers", "Ethnic Wear", "Innerwear",
+                                                                        "Sportswear", "chinos", "cargo pants",
+                                                                        "joggers"),
+                                                        withChildren("Footwear", "Men's Casual Shoes",
+                                                                        "Men's Sports Shoes", "Men's Formal Shoes",
+                                                                        "Men's Sandals"),
+                                                        withChildren("Accessories", "Wallets", "Belts", "Men's Watches",
+                                                                        "Sunglasses", "Caps & Hats")),
+
+                                        // Women
+                                        of("Women",
+                                                        withChildren("Clothing", "Tops", "Dresses", "Sarees", "Kurtis",
+                                                                        "Jeans", "Leggings", "Lingerie & Sleepwear",
+                                                                        "trousers", "chinos", "cargo pants", "joggers"),
+                                                        withChildren("Footwear", "Women's Casual Shoes", "Heels",
+                                                                        "Women's Sports Shoes", "Boots"),
+                                                        withChildren("Accessories", "Handbags", "Jewelry",
+                                                                        "Women's Watches", "Scarves")),
+
+                                        // Kids
+                                        of("Kids",
+                                                        withChildren("Clothing", "Boys Clothing", "Girls Clothing",
+                                                                        "Infant Wear"),
+                                                        withChildren("Footwear", "Kids' Casual Shoes",
+                                                                        "Kids' Sports Shoes", "School Shoes"),
+                                                        withChildren("Accessories", "School Bags", "Kids' Watches")),
+                                        // Unisex styles
+                                        of("Unisex styles",
+                                                        withChildren("Clothing", "T-Shirts", "Shirts", "Jeans",
+                                                                        "Trousers", "Ethnic Wear", "Innerwear",
+                                                                        "Sportswear", "chinos", "cargo pants",
+                                                                        "joggers"),
+                                                        withChildren("Footwear", "Men's Casual Shoes",
+                                                                        "Men's Sports Shoes", "Men's Formal Shoes",
+                                                                        "Men's Sandals"),
+                                                        withChildren("Accessories", "Wallets", "Belts", "Men's Watches",
+                                                                        "Sunglasses", "Caps & Hats"))),
 
                 // Electronics
                 of("Electronics",

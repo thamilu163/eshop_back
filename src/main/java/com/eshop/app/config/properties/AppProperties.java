@@ -26,13 +26,15 @@ public class AppProperties {
     private String environment = "development";
     private boolean debug = false;
 
+    @NotBlank(message = "Backend URL must be configured via APP_BACKEND_URL")
+    private String backendUrl;
     private Security security = new Security();
     private Cors cors = new Cors();
     private Analytics analytics = new Analytics();
     private RateLimit ratelimit = new RateLimit();
     private Logging logging = new Logging();
     private Audit audit = new Audit();
-    private Upload upload = new Upload();
+    private Storage storage = new Storage();
     private Validation validation = new Validation();
     private Api api = new Api();
     private Business business = new Business();
@@ -41,25 +43,25 @@ public class AppProperties {
     private Product product = new Product();
     private Cache cache = new Cache();
     private Openapi openapi = new Openapi();
+    private Swagger swagger = new Swagger();
 
     /**
      * Security configuration
      */
     @Data
     public static class Security {
-        private Jwt jwt = new Jwt();
         private Roles roles = new Roles();
-        private String defaultRedirectUri = "http://localhost:3000";
-        private List<String> allowedRedirectUris = List.of("http://localhost:3000", "http://localhost:4200");
-        private Headers headers = new Headers();
-        private Swagger swagger = new Swagger();
 
-        @Data
-        public static class Jwt {
-            private String authorityPrefix = "ROLE_";
-            private String authoritiesClaimName = "roles";
-            private String audience = "eshop-backend";
-        }
+        private String rolePrefix = "ROLE_";
+        private String claimRealms = "realm_access";
+        private String claimRoles = "roles";
+
+        @NotBlank(message = "Default redirect URI must be configured via APP_DEFAULT_REDIRECT_URI")
+        private String defaultRedirectUri;
+
+        @NotEmpty(message = "Allowed redirect URIs must be configured via APP_ALLOWED_REDIRECT_URIS")
+        private List<String> allowedRedirectUris;
+        private Headers headers = new Headers();
 
         @Data
         public static class Roles {
@@ -80,9 +82,19 @@ public class AppProperties {
             private String referrerPolicy = "no-referrer";
         }
 
+    }
+
+    @Data
+    public static class Swagger {
+        private boolean enabled = true;
+        private Security security = new Security();
+
         @Data
-        public static class Swagger {
-            private boolean enabled = true;
+        public static class Security {
+            @NotBlank
+            private String authorizationUrl;
+            @NotBlank
+            private String tokenUrl;
         }
     }
 
@@ -92,7 +104,8 @@ public class AppProperties {
     @Data
     public static class Cors {
         private boolean enabled = true;
-        private String allowedOrigins = "http://localhost:3000,http://localhost:4200";
+        @NotBlank(message = "Allowed origins must be configured via ALLOWED_ORIGINS")
+        private String allowedOrigins;
         private String allowedMethods = "GET,POST,PUT,DELETE,PATCH,OPTIONS";
         private String allowedHeaders = "Authorization,Content-Type,X-Requested-With,Accept,Origin,X-API-Version,X-Request-ID";
         private String exposedHeaders = "X-Total-Count,X-Page-Number,X-Page-Size";
@@ -167,10 +180,10 @@ public class AppProperties {
     }
 
     /**
-     * File upload configuration
+     * Storage configuration (app.storage.*)
      */
     @Data
-    public static class Upload {
+    public static class Storage {
         private long maxFileSize = 5242880; // 5MB in bytes
         private int maxFiles = 10;
         private String allowedMimeTypes = "image/jpeg,image/png,image/webp";
@@ -179,6 +192,9 @@ public class AppProperties {
         private int maxImageHeight = 1080;
         private float compressQuality = 0.85f;
         private boolean virusScanEnabled = false;
+        private String uploadDir = "./uploads";
+        @NotBlank(message = "Storage base URL must be configured via APP_STORAGE_BASE_URL")
+        private String baseUrl;
     }
 
     /**
@@ -207,6 +223,30 @@ public class AppProperties {
      */
     @Data
     public static class Business {
+        @PositiveOrZero
+        private double defaultCommissionRate = 0.05;
+
+        @NotBlank
+        private String defaultCurrency = "INR";
+
+        @Positive
+        private double minPaymentAmount = 0.01;
+
+        @Positive
+        private double maxPaymentAmount = 100000.00;
+
+        @NotBlank
+        private String allowedGateways = "STRIPE,PAYPAL,RAZORPAY";
+
+        @NotBlank
+        private String allowedCurrencies = "USD,EUR,INR,GBP";
+
+        private boolean upiEnabled = true;
+        private boolean emiEnabled = true;
+
+        @Positive
+        private double emiMinAmount = 5000.00;
+
         private double minProductPrice = 0.01;
         private double maxProductPrice = 999999.99;
         private int maxDiscountPercentage = 99;
@@ -343,5 +383,6 @@ public class AppProperties {
         private String title = "E-Shop REST API";
         private String version = "1.0.0";
         private String description = "E-Commerce Platform REST API";
+        private String serverUrl;
     }
 }

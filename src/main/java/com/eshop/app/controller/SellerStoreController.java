@@ -4,7 +4,6 @@ import com.eshop.app.constants.ApiConstants;
 import com.eshop.app.dto.request.StoreCreateRequest;
 import com.eshop.app.dto.response.ApiResponse;
 import com.eshop.app.dto.response.StoreResponse;
-import com.eshop.app.entity.User;
 import com.eshop.app.exception.ResourceNotFoundException;
 import com.eshop.app.repository.UserRepository;
 import com.eshop.app.service.StoreService;
@@ -56,8 +55,7 @@ import org.springframework.web.bind.annotation.*;
  * @since 2026-01-10
  */
 @Tag(
-    name = "Seller Store", 
-    description = "Seller storefront management endpoints - Manage your store, check status, and update store information"
+        name = "Seller Stores", description = "Seller storefront management - Create, update, and manage seller stores"
 )
 @RestController
 @RequestMapping(ApiConstants.BASE_PATH + "/seller/store")
@@ -67,7 +65,6 @@ import org.springframework.web.bind.annotation.*;
 public class SellerStoreController {
     
     private final StoreService storeService;
-    private final UserRepository userRepository;
     
     /**
      * Get authenticated seller's store.
@@ -145,19 +142,7 @@ public class SellerStoreController {
     public ResponseEntity<ApiResponse<StoreResponse>> getMyStore(
             Authentication authentication) {
 
-        String sellerEmail;
-        String sellerId;
-        Object principal = authentication.getPrincipal();
-        if (principal instanceof com.eshop.app.config.EnhancedSecurityConfig.PrincipalDetails pd) {
-            sellerEmail = pd.getEmail();
-            sellerId = String.valueOf(pd.getId());
-        } else {
-            Jwt jwt = extractJwt(authentication);
-            sellerEmail = jwt.getClaimAsString("email");
-            sellerId = jwt.getSubject();
-        }
-
-        log.info("Fetching store for seller: email={}, id={}", sellerEmail, sellerId);
+        log.info("Fetching store for authenticated seller");
 
         StoreResponse store = storeService.getMyStore();
 
@@ -270,29 +255,16 @@ public class SellerStoreController {
             @Valid @RequestBody StoreCreateRequest request,
             Authentication authentication) {
 
-        String sellerEmail;
-        String userSubject;
-        Object principal = authentication.getPrincipal();
-        if (principal instanceof com.eshop.app.config.EnhancedSecurityConfig.PrincipalDetails pd) {
-            sellerEmail = pd.getEmail();
-            userSubject = String.valueOf(pd.getId());
+        if (authentication.getPrincipal() instanceof com.eshop.app.security.PrincipalDetails pd) {
+            request.setSellerId(pd.getId());
         } else {
-            Jwt jwt = extractJwt(authentication);
-            sellerEmail = jwt.getClaimAsString("email");
-            userSubject = jwt.getSubject();
+            // Fallback for non-record principal if any (shouldn't happen with our config)
+            throw new AccessDeniedException("User details not found in principal");
         }
 
-        log.info("Creating store for seller: email={}, subject={}, storeName={}",
-                 sellerEmail, userSubject, request.getStoreName());
-        
-        // Get user from database and auto-populate sellerId and sellerType
-        User seller = userRepository.findByEmail(sellerEmail)
-                .orElseThrow(() -> new ResourceNotFoundException("Seller not found with email: " + sellerEmail));
-        
-        // Auto-populate required fields from authenticated user
-        request.setSellerId(seller.getId());
+        log.info("Creating store for seller ID: {}", request.getSellerId());
 
-        log.debug("Auto-populated request: sellerId={}", seller.getId());
+        log.debug("Auto-populated request: sellerId={}", request.getSellerId());
         
         StoreResponse store = storeService.createStore(request);
         
@@ -403,19 +375,7 @@ public class SellerStoreController {
             @Valid @RequestBody StoreCreateRequest request,
             Authentication authentication) {
 
-        String sellerEmail;
-        String sellerId;
-        Object principal = authentication.getPrincipal();
-        if (principal instanceof com.eshop.app.config.EnhancedSecurityConfig.PrincipalDetails pd) {
-            sellerEmail = pd.getEmail();
-            sellerId = String.valueOf(pd.getId());
-        } else {
-            Jwt jwt = extractJwt(authentication);
-            sellerEmail = jwt.getClaimAsString("email");
-            sellerId = jwt.getSubject();
-        }
-
-        log.info("Updating store for seller: email={}, id={}", sellerEmail, sellerId);
+        log.info("Updating store for authenticated seller");
         
         // Get seller's current store to get the ID
         StoreResponse currentStore = storeService.getMyStore();
@@ -511,20 +471,5 @@ public class SellerStoreController {
         } catch (ResourceNotFoundException e) {
             return ResponseEntity.ok(ApiResponse.success(false));
         }
-    }
-
-    // Helper to safely extract Jwt from Authentication
-    private Jwt extractJwt(Authentication authentication) {
-        if (authentication == null) {
-            throw new AccessDeniedException("Authentication required");
-        }
-        if (authentication instanceof JwtAuthenticationToken jwtToken) {
-            return jwtToken.getToken();
-        }
-        Object principal = authentication.getPrincipal();
-        if (principal instanceof Jwt jwt) {
-            return jwt;
-        }
-        throw new AccessDeniedException("JWT token not found in authentication");
     }
 }

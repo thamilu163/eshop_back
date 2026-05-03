@@ -72,7 +72,7 @@ public interface AnalyticsOrderRepository extends JpaRepository<Order, Long> {
             COUNT(DISTINCT o.customer.id) as totalCustomers
         )
         FROM Order o
-            WHERE o.store.seller.id = :sellerId
+                    WHERE o.store.sellerProfile.user.id = :sellerId
         """)
     Map<String, Object> getSellerOrderStatistics(@Param("sellerId") Long sellerId);
     
@@ -86,7 +86,7 @@ public interface AnalyticsOrderRepository extends JpaRepository<Order, Long> {
     @Query("""
         SELECT COALESCE(SUM(o.totalAmount), 0)
         FROM Order o
-            WHERE o.store.seller.id = :sellerId
+                    WHERE o.store.sellerProfile.user.id = :sellerId
             AND o.orderStatus = 'COMPLETED'
             AND o.createdAt >= :startOfMonth
         """)
@@ -175,10 +175,13 @@ public interface AnalyticsOrderRepository extends JpaRepository<Order, Long> {
      */
     @Query("""
         SELECT DISTINCT o FROM Order o
-        LEFT JOIN FETCH o.customer
-            LEFT JOIN FETCH o.store
+                LEFT JOIN FETCH o.customer c
+                LEFT JOIN FETCH c.userProfile
+                    LEFT JOIN FETCH o.store s
+                    LEFT JOIN FETCH s.sellerProfile sp
+                    LEFT JOIN FETCH sp.user
         LEFT JOIN FETCH o.currency
-            WHERE o.store.seller.id = :sellerId
+                    WHERE sp.user.id = :sellerId
         ORDER BY o.createdAt DESC
         """)
     Page<Order> findBySellerIdWithAssociations(
@@ -196,17 +199,18 @@ public interface AnalyticsOrderRepository extends JpaRepository<Order, Long> {
     @Query("""
         SELECT new map(
             c.id as customerId,
-            c.firstName as firstName,
-            c.lastName as lastName,
-            c.email as email,
+                    up.firstName as firstName,
+                    up.lastName as lastName,
+                c.keycloakId as keycloakId,
             COUNT(o.id) as orderCount,
             COALESCE(SUM(o.totalAmount), 0) as totalSpent
         )
         FROM Order o
         JOIN o.customer c
-            WHERE o.store.seller.id = :sellerId
+                JOIN c.userProfile up
+                    WHERE o.store.sellerProfile.user.id = :sellerId
             AND o.orderStatus = 'COMPLETED'
-        GROUP BY c.id, c.firstName, c.lastName, c.email
+                GROUP BY c.id, up.firstName, up.lastName, c.keycloakId
         ORDER BY COUNT(o.id) DESC
         """)
     List<Map<String, Object>> getTopCustomersBySellerId(

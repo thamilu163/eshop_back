@@ -101,7 +101,7 @@ import java.util.concurrent.TimeUnit;
 @ConditionalOnProperty(name = "redis.resilient.mode", havingValue = "true", matchIfMissing = false)
 public class ResilientRedisCacheConfig {
 
-    @Value("${spring.data.redis.host:localhost}")
+    @Value("${spring.data.redis.host}")
     private String redisHost;
 
     @Value("${spring.data.redis.port:6379}")

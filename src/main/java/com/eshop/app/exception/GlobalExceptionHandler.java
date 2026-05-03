@@ -557,7 +557,7 @@ public class GlobalExceptionHandler {
                                 .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
                                 .error(HttpStatus.INTERNAL_SERVER_ERROR.getReasonPhrase())
                                 .errorCode("INTERNAL_ERROR")
-                                .message("An unexpected error occurred. DEBUG INFO: " + ex.getMessage() + " | Error ID: " + errorId)
+                                .message("An unexpected error occurred. Please contact support with Reference ID: " + errorId)
                                 .errorId(errorId)
                                 .path(getRequestPath(request))
                                 .build();

@@ -35,29 +35,16 @@ public class ValidRegisterRequestValidator implements ConstraintValidator<ValidR
                 valid = false;
             } else {
                 String st = sellerType.trim().toUpperCase();
-                if (st.equals("FARMER")) {
-                    if (isBlank(request.getAadharNumber()) && isBlank(request.getAadhar())) {
-                        context.buildConstraintViolationWithTemplate("aadharNumber is required for farmer sellers")
-                                .addPropertyNode("aadharNumber").addConstraintViolation();
-                        valid = false;
-                    }
-                    if (isBlank(request.getFarmingLandArea()) && isBlank(request.getLandArea())) {
-                        context.buildConstraintViolationWithTemplate("farmingLandArea is required for farmer sellers")
-                                .addPropertyNode("farmingLandArea").addConstraintViolation();
-                        valid = false;
-                    }
-                } else {
-                    // non-farmer sellers require storeName and businessName
-                    if (isBlank(request.getStoreName())) {
-                        context.buildConstraintViolationWithTemplate("storeName is required for this seller type")
-                                .addPropertyNode("storeName").addConstraintViolation();
-                        valid = false;
-                    }
-                    if (isBlank(request.getBusinessName())) {
-                        context.buildConstraintViolationWithTemplate("businessName is required for this seller type")
-                                .addPropertyNode("businessName").addConstraintViolation();
-                        valid = false;
-                    }
+                // All sellers require storeName and businessName
+                if (isBlank(request.getStoreName())) {
+                    context.buildConstraintViolationWithTemplate("storeName is required for this seller type")
+                            .addPropertyNode("storeName").addConstraintViolation();
+                    valid = false;
+                }
+                if (isBlank(request.getBusinessName())) {
+                    context.buildConstraintViolationWithTemplate("businessName is required for this seller type")
+                            .addPropertyNode("businessName").addConstraintViolation();
+                    valid = false;
                 }
             }
         }

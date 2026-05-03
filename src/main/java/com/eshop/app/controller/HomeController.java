@@ -22,12 +22,11 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.time.Instant;
 
-@Tag(name = "Home", description = "Home APIs")
+@Tag(name = "Home Pages", description = "Home page and role-specific dashboard endpoints")
 @RestController
 @RequestMapping(ApiConstants.Endpoints.HOME)
 @RequiredArgsConstructor
 @Slf4j
-@Tag(name = "Home", description = "Home page and role-specific dashboard endpoints")
 public class HomeController {
 
     private final HomeService homeService;

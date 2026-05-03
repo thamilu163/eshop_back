@@ -21,6 +21,9 @@ public class CustomerDashboardResponse {
     private OrderStats orderStats;
     private String role;
     private Instant timestamp;
+    private List<TopSellingProductResponse> trendingProducts;
+    private List<ProductResponse> featuredProducts;
+    private Object activeOrder;
 
     @Data
     @Builder

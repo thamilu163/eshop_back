@@ -8,9 +8,14 @@ import org.springframework.test.context.ActiveProfiles;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@SpringBootTest
+import org.springframework.test.context.TestPropertySource;
+
+@SpringBootTest(properties = "spring.main.allow-bean-definition-overriding=true")
 @ActiveProfiles("test")
 @Import(TestOAuth2DisabledConfig.class)
+@TestPropertySource(properties = {
+        "app.security.admin.issuer-uri=http://localhost:8080/realms/eshop-admin"
+})
 class JwtPropertiesTest {
 
     @Autowired

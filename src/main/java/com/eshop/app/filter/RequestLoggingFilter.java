@@ -26,14 +26,17 @@ import java.util.Collections;
 @Slf4j
 public class RequestLoggingFilter extends OncePerRequestFilter {
 
-    @Value("${logging.request.max-payload-length:1000}")
+    @Value("${app.logging.request.max-payload-length:1000}")
     private int maxPayloadLength;
 
-    @Value("${logging.request.include-headers:false}")
+    @Value("${app.logging.request.include-headers:false}")
     private boolean includeHeaders;
 
-    @Value("${logging.request.include-payload:false}")
+    @Value("${app.logging.request.include-payload:false}")
     private boolean includePayload;
+
+    @Value("${app.logging.request.enabled:true}")
+    private boolean enabled;
 
     @Override
         protected void doFilterInternal(
@@ -41,7 +44,7 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
             @Nonnull HttpServletResponse response,
             @Nonnull FilterChain filterChain) throws ServletException, IOException {
 
-        if (shouldSkip(request)) {
+            if (!enabled || shouldSkip(request)) {
             filterChain.doFilter(request, response);
             return;
         }
@@ -50,6 +53,9 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
         ContentCachingResponseWrapper wrappedResponse = new ContentCachingResponseWrapper(response);
 
         Instant start = Instant.now();
+        if (log.isInfoEnabled()) {
+            log.info("Request received: {} {}", request.getMethod(), request.getRequestURI());
+        }
         try {
             filterChain.doFilter(wrappedRequest, wrappedResponse);
         } finally {

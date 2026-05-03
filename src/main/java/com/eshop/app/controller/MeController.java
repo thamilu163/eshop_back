@@ -44,10 +44,15 @@ public class MeController {
     /**
      * Get Current Authenticated User from JWT
      * 
-     * <p>This endpoint validates the JWT token from the Authorization header
-     * and returns all relevant user claims including roles.</p>
+     * <p>
+     * This endpoint validates the JWT token from the Authorization header
+     * and returns all relevant user claims including roles.
+     * </p>
      * 
-     * <p><strong>Usage Examples:</strong></p>
+     * <p>
+     * <strong>Usage Examples:</strong>
+     * </p>
+     * 
      * <pre>
      * // Frontend (React/Next.js)
      * fetch('/api/me', {
@@ -55,13 +60,16 @@ public class MeController {
      * })
      * 
      * // cURL
-     * curl -H "Authorization: Bearer YOUR_JWT_TOKEN" http://localhost:8082/api/me
+     * curl -H "Authorization: Bearer YOUR_JWT_TOKEN" {BASE_URL}/api/me
      * 
      * // Postman
      * Authorization → Bearer Token → paste Access Token
      * </pre>
      * 
-     * <p><strong>Response Example:</strong></p>
+     * <p>
+     * <strong>Response Example:</strong>
+     * </p>
+     * 
      * <pre>
      * {
      *   "sub": "user-id-12345",
@@ -81,7 +89,8 @@ public class MeController {
      * }
      * </pre>
      * 
-     * @param jwt The validated JWT token from Keycloak (injected by Spring Security)
+     * @param jwt The validated JWT token from Keycloak (injected by Spring
+     *            Security)
      * @return Map containing comprehensive user identity information
      */
     @GetMapping("/me")

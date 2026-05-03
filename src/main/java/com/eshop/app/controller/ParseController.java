@@ -12,7 +12,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
-@Tag(name = "Parse", description = "Parsing APIs")
+@Tag(name = "Parsing Utilities", description = "Data parsing and transformation utilities")
 @RestController
 @RequestMapping(ApiConstants.Endpoints.PARSECONTROLLER)
 public class ParseController {

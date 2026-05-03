@@ -5,15 +5,14 @@ import com.eshop.app.dto.response.ApiResponse;
 import com.eshop.app.dto.response.OrderResponse;
 import com.eshop.app.dto.response.PageResponse;
 import com.eshop.app.service.OrderService;
+import com.eshop.app.util.ControllerResponseUtils;
+import com.eshop.app.util.PaginationUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -36,9 +35,7 @@ public class OrderController {
     public ResponseEntity<ApiResponse<OrderResponse>> createOrder(
             @Valid @RequestBody OrderCreateRequest request) {
         OrderResponse response = orderService.createOrder(request);
-        return ResponseEntity
-                .status(HttpStatus.CREATED)
-                .body(ApiResponse.success("Order created successfully", response));
+        return ControllerResponseUtils.created("Order created successfully", response);
     }
 
     @GetMapping("/{id}")
@@ -47,7 +44,7 @@ public class OrderController {
     public ResponseEntity<ApiResponse<OrderResponse>> getOrderById(
             @Parameter(description = "Order ID") @PathVariable Long id) {
         OrderResponse response = orderService.getOrderById(id);
-        return ResponseEntity.ok(ApiResponse.success(response));
+        return ControllerResponseUtils.ok(response);
     }
 
     @GetMapping("/number/{orderNumber}")
@@ -56,7 +53,7 @@ public class OrderController {
     public ResponseEntity<ApiResponse<OrderResponse>> getOrderByOrderNumber(
             @Parameter(description = "Order Number") @PathVariable String orderNumber) {
         OrderResponse response = orderService.getOrderByOrderNumber(orderNumber);
-        return ResponseEntity.ok(ApiResponse.success(response));
+        return ControllerResponseUtils.ok(response);
     }
 
     @GetMapping("/my-orders")
@@ -64,9 +61,9 @@ public class OrderController {
     public ResponseEntity<ApiResponse<PageResponse<OrderResponse>>> getMyOrders(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        Pageable pageable = PaginationUtils.createPageableWithCreatedAtDesc(page, size);
         PageResponse<OrderResponse> response = orderService.getMyOrders(pageable);
-        return ResponseEntity.ok(ApiResponse.success(response));
+        return ControllerResponseUtils.ok(response);
     }
 
     @GetMapping
@@ -74,9 +71,9 @@ public class OrderController {
     public ResponseEntity<ApiResponse<PageResponse<OrderResponse>>> getAllOrders(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        Pageable pageable = PaginationUtils.createPageableWithCreatedAtDesc(page, size);
         PageResponse<OrderResponse> response = orderService.getAllOrders(pageable);
-        return ResponseEntity.ok(ApiResponse.success(response));
+        return ControllerResponseUtils.ok(response);
     }
 
     @GetMapping("/status/{status}")
@@ -85,9 +82,9 @@ public class OrderController {
             @PathVariable String status,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        Pageable pageable = PaginationUtils.createPageableWithCreatedAtDesc(page, size);
         PageResponse<OrderResponse> response = orderService.getOrdersByStatus(status, pageable);
-        return ResponseEntity.ok(ApiResponse.success(response));
+        return ControllerResponseUtils.ok(response);
     }
 
     @GetMapping("/store/{storeId}")
@@ -96,9 +93,9 @@ public class OrderController {
             @PathVariable Long storeId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        Pageable pageable = PaginationUtils.createPageableWithCreatedAtDesc(page, size);
         PageResponse<OrderResponse> response = orderService.getOrdersByStore(storeId, pageable);
-        return ResponseEntity.ok(ApiResponse.success(response));
+        return ControllerResponseUtils.ok(response);
     }
 
     @PutMapping("/{orderId}/status")
@@ -107,7 +104,7 @@ public class OrderController {
             @PathVariable Long orderId,
             @RequestParam String status) {
         OrderResponse response = orderService.updateOrderStatus(orderId, status);
-        return ResponseEntity.ok(ApiResponse.success("Order status updated", response));
+        return ControllerResponseUtils.ok("Order status updated", response);
     }
 
     @PutMapping("/{orderId}/payment-status")
@@ -116,7 +113,7 @@ public class OrderController {
             @PathVariable Long orderId,
             @RequestParam String status) {
         OrderResponse response = orderService.updatePaymentStatus(orderId, status);
-        return ResponseEntity.ok(ApiResponse.success("Payment status updated", response));
+        return ControllerResponseUtils.ok("Payment status updated", response);
     }
 
     @PutMapping("/{orderId}/assign-delivery-agent")
@@ -125,7 +122,7 @@ public class OrderController {
             @PathVariable Long orderId,
             @RequestParam Long agentId) {
         OrderResponse response = orderService.assignDeliveryAgent(orderId, agentId);
-        return ResponseEntity.ok(ApiResponse.success("Delivery agent assigned", response));
+        return ControllerResponseUtils.ok("Delivery agent assigned", response);
     }
 
     @GetMapping("/delivery/my-deliveries")
@@ -133,9 +130,9 @@ public class OrderController {
     public ResponseEntity<ApiResponse<PageResponse<OrderResponse>>> getDeliveryAgentOrders(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        Pageable pageable = PaginationUtils.createPageableWithCreatedAtDesc(page, size);
         PageResponse<OrderResponse> response = orderService.getDeliveryAgentOrders(pageable);
-        return ResponseEntity.ok(ApiResponse.success(response));
+        return ControllerResponseUtils.ok(response);
     }
 
     @GetMapping("/seller")
@@ -144,8 +141,8 @@ public class OrderController {
     public ResponseEntity<ApiResponse<PageResponse<OrderResponse>>> getSellerOrders(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        Pageable pageable = PaginationUtils.createPageableWithCreatedAtDesc(page, size);
         PageResponse<OrderResponse> response = orderService.getSellerOrders(pageable);
-        return ResponseEntity.ok(ApiResponse.success(response));
+        return ControllerResponseUtils.ok(response);
     }
 }

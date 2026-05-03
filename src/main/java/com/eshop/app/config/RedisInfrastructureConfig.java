@@ -38,7 +38,7 @@ public class RedisInfrastructureConfig {
 
     private static final Logger log = LoggerFactory.getLogger(RedisInfrastructureConfig.class);
 
-    @Value("${spring.data.redis.host:localhost}")
+    @Value("${spring.data.redis.host}")
     private String redisHost;
 
     @Value("${spring.data.redis.port:6379}")

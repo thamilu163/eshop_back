@@ -12,7 +12,7 @@ public class SwaggerGroupConfig {
     public GroupedOpenApi publicApi() {
         return GroupedOpenApi.builder()
             .group("public")
-            .displayName("Public APIs")
+                .displayName("Public API")
             .pathsToMatch(ApiConstants.BASE_PATH + "/public/**", ApiConstants.BASE_PATH + "/products/**", ApiConstants.BASE_PATH + "/categories/**")
             .build();
     }
@@ -21,7 +21,7 @@ public class SwaggerGroupConfig {
     public GroupedOpenApi authApi() {
         return GroupedOpenApi.builder()
             .group("auth")
-            .displayName("Authentication / Keycloak APIs")
+                .displayName("Authentication / Keycloak API")
             .pathsToMatch(ApiConstants.BASE_PATH + "/auth/**")
             .build();
     }
@@ -29,8 +29,8 @@ public class SwaggerGroupConfig {
     @Bean
     public GroupedOpenApi adminApi() {
         return GroupedOpenApi.builder()
-            .group("admin")
-            .displayName("Admin APIs")
+                .group("admin-api")
+                .displayName("Admin API")
             .pathsToMatch(ApiConstants.BASE_PATH + "/admin/**")
             .build();
     }
@@ -39,7 +39,7 @@ public class SwaggerGroupConfig {
     public GroupedOpenApi sellerApi() {
         return GroupedOpenApi.builder()
             .group("seller")
-            .displayName("Seller APIs")
+                .displayName("Seller API")
             .pathsToMatch(ApiConstants.BASE_PATH + "/seller/**")
             .build();
     }
@@ -48,7 +48,7 @@ public class SwaggerGroupConfig {
     public GroupedOpenApi userApi() {
         return GroupedOpenApi.builder()
             .group("user")
-            .displayName("User APIs")
+                .displayName("User API")
             .pathsToMatch(ApiConstants.BASE_PATH + "/users/**", ApiConstants.BASE_PATH + "/orders/**", ApiConstants.BASE_PATH + "/cart/**")
             .build();
     }
@@ -57,7 +57,7 @@ public class SwaggerGroupConfig {
     public GroupedOpenApi allApis() {
         return GroupedOpenApi.builder()
             .group("all")
-            .displayName("All APIs")
+                .displayName("All API")
             .pathsToMatch(ApiConstants.API_PREFIX + "/**")
             .build();
     }

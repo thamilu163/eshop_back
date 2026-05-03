@@ -181,15 +181,16 @@ public class ProblemDetailExceptionHandler {
         Exception ex,
         HttpServletRequest request) {
         
-    log.error("Unhandled exception: ", ex);
+    log.error("Unhandled exception at {}: {}", request.getRequestURI(), ex.getMessage(), ex);
         
     ProblemDetail problem = ProblemDetail.forStatusAndDetail(
         HttpStatus.INTERNAL_SERVER_ERROR,
-        "An unexpected error occurred"
+        "Server error: " + ex.getMessage()
     );
     problem.setTitle("Internal Server Error");
     problem.setInstance(URI.create(request.getRequestURI()));
     problem.setProperty("timestamp", Instant.now().toString());
+    problem.setProperty("exception", ex.getClass().getSimpleName());
         
     return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(problem);
     }

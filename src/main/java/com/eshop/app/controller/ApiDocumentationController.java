@@ -1,5 +1,6 @@
 package com.eshop.app.controller;
 
+import com.eshop.app.constants.ApiConstants;
 import com.eshop.app.dto.response.ApiStatusResponse;
 import com.eshop.app.dto.response.WelcomeResponse;
 import io.swagger.v3.oas.annotations.Hidden;
@@ -142,11 +143,11 @@ public class ApiDocumentationController {
         
         // Endpoints summary
         Map<String, String> endpoints = new LinkedHashMap<>();
-        endpoints.put("auth", baseUrl + "/api/auth");
-        endpoints.put("users", baseUrl + "/api/users");
-        endpoints.put("products", baseUrl + "/api/products");
-        endpoints.put("categories", baseUrl + "/api/categories");
-        endpoints.put("orders", baseUrl + "/api/orders");
+        endpoints.put("auth", baseUrl + ApiConstants.Endpoints.AUTH);
+        endpoints.put("users", baseUrl + ApiConstants.Endpoints.USERS);
+        endpoints.put("products", baseUrl + ApiConstants.Endpoints.PRODUCTS);
+        endpoints.put("categories", baseUrl + ApiConstants.Endpoints.CATEGORIES);
+        endpoints.put("orders", baseUrl + ApiConstants.Endpoints.ORDERS);
         info.put("endpoints", endpoints);
         
         // Technical details (only in development/when enabled)

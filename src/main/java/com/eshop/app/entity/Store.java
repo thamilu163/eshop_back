@@ -9,8 +9,8 @@ import java.util.Set;
 @Entity
 @Table(name = "stores", indexes = {
     @Index(name = "idx_store_name", columnList = "store_name"),
-    @Index(name = "idx_store_seller", columnList = "seller_id"),
-    @Index(name = "idx_store_location", columnList = "latitude,longitude"),
+        @Index(name = "idx_store_seller_profile", columnList = "seller_profile_id"),
+            @Index(name = "idx_store_location", columnList = "latitude,longitude"),
     @Index(name = "idx_store_city", columnList = "city"),
     @Index(name = "idx_store_active", columnList = "active")
 })
@@ -23,14 +23,17 @@ import java.util.Set;
 @EqualsAndHashCode(callSuper = true, exclude = "products")
 public class Store extends BaseEntity {
     
-    @Column(name = "store_name", nullable = false, unique = true, length = 200)
+    @Column(name = "store_name", nullable = false, length = 200)
     private String storeName;
     
     @Column(nullable = false, length = 1000)
     private String description;
     
-    @Column(length = 500)
-    private String address;
+    @Column(name = "address_line1", length = 500)
+    private String addressLine1;
+
+    @Column(name = "address_line2", length = 500)
+    private String addressLine2;
     
     @Column(length = 20)
     private String phone;
@@ -53,6 +56,9 @@ public class Store extends BaseEntity {
     
     @Column(length = 100)
     private String city;
+
+    @Column(length = 100)
+    private String district;
     
     @Column(length = 100)
     private String state;
@@ -73,13 +79,16 @@ public class Store extends BaseEntity {
     @Column
     private Double rating; // Store rating (0-5)
 
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "seller_id", nullable = false, unique = true)
-    private User seller;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "seller_profile_id", nullable = false)
+    private SellerProfile sellerProfile;
     
     @OneToMany(mappedBy = "store", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private final Set<Product> products = new HashSet<>();
+
+    @Column(name = "google_maps_url", length = 500)
+    private String googleMapsUrl;
 
     @Column(name = "deleted", nullable = false)
     @Builder.Default

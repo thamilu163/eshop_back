@@ -62,17 +62,23 @@ public class SeedOrchestrator {
             
             SeederContext context = SeederContext.builder().build();
             
-            // Execute seeders in priority order
+            // 1. Cleanup Phase - Execute in REVERSE order (Children first, then Parents)
+            // This prevents Foreign Key constraint violations
+            seeders.stream()
+                    .sorted(Comparator.comparingInt((Seeder<?, ?> s) -> s.order()).reversed())
+                    .forEach(seeder -> {
+                        log.info("Cleaning up: {}", seeder.name());
+                        seeder.cleanup();
+                    });
+
+            // 2. Seeding Phase - Execute in DEFINED order (Parents first, then Children)
             List<Seeder<?, ?>> orderedSeeders = seeders.stream()
-                .sorted(Comparator.comparingInt(Seeder::order))
+                    .sorted(Comparator.comparingInt((Seeder<?, ?> s) -> s.order()))
                 .toList();
-            
+
             for (Seeder<?, ?> seeder : orderedSeeders) {
                 log.info("Executing seeder: {}", seeder.name());
-                
-                // Cleanup existing data
-                seeder.cleanup();
-                
+
                 // Seed new data
                 @SuppressWarnings("unchecked")
                 List<?> seeded = ((Seeder<Object, SeederContext>) seeder).seed(context);

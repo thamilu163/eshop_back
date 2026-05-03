@@ -22,16 +22,16 @@ public class AdminAggregationService {
     private final ProductService productService;
     private final StoreService storeService;
     private final OrderService orderService;
-    private final Executor dashboardExecutor;
+    private final Executor eshopVirtualThreadExecutor;
 
     public AdminDashboardResponse.OverviewStats getOverviewStats() {
         try {
-            CompletableFuture<Long> totalUsers = CompletableFuture.supplyAsync(userService::getTotalUserCount, dashboardExecutor);
-            CompletableFuture<Long> totalProducts = CompletableFuture.supplyAsync(productService::getTotalProductCount, dashboardExecutor);
-            CompletableFuture<Long> totalStores = CompletableFuture.supplyAsync(storeService::getTotalStoreCount, dashboardExecutor);
-            CompletableFuture<Long> totalOrders = CompletableFuture.supplyAsync(orderService::getTotalOrderCount, dashboardExecutor);
-            CompletableFuture<Long> pendingOrders = CompletableFuture.supplyAsync(orderService::getPendingOrderCount, dashboardExecutor);
-            CompletableFuture<Long> todayOrders = CompletableFuture.supplyAsync(orderService::getTodayOrderCount, dashboardExecutor);
+            CompletableFuture<Long> totalUsers = CompletableFuture.supplyAsync(userService::getTotalUserCount, eshopVirtualThreadExecutor);
+            CompletableFuture<Long> totalProducts = CompletableFuture.supplyAsync(productService::getTotalProductCount, eshopVirtualThreadExecutor);
+            CompletableFuture<Long> totalStores = CompletableFuture.supplyAsync(storeService::getTotalStoreCount, eshopVirtualThreadExecutor);
+            CompletableFuture<Long> totalOrders = CompletableFuture.supplyAsync(orderService::getTotalOrderCount, eshopVirtualThreadExecutor);
+            CompletableFuture<Long> pendingOrders = CompletableFuture.supplyAsync(orderService::getPendingOrderCount, eshopVirtualThreadExecutor);
+            CompletableFuture<Long> todayOrders = CompletableFuture.supplyAsync(orderService::getTodayOrderCount, eshopVirtualThreadExecutor);
 
             CompletableFuture.allOf(totalUsers, totalProducts, totalStores, totalOrders, pendingOrders, todayOrders).join();
 

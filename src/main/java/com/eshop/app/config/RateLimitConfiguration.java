@@ -89,7 +89,12 @@ public class RateLimitConfiguration {
             "admin", adminConfig,
             "analytics", analyticsConfig,
             "payment", paymentConfig,
-            "upload", uploadConfig
+                "upload", uploadConfig,
+                "login", RateLimiterConfig.custom()
+                        .limitRefreshPeriod(Duration.ofMinutes(1))
+                        .limitForPeriod(5)
+                        .timeoutDuration(Duration.ZERO)
+                        .build()
         ));
     }
 }

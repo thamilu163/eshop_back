@@ -61,7 +61,7 @@ public class AdminAnalyticsService {
      * 
      * @return admin statistics with all aggregates
      */
-    @Cacheable(value = "adminStatistics", key = "'admin-stats'", unless = "#result == null")
+    @Cacheable(value = "adminStatistics", key = "'admin-stats'", unless = "#result == null", sync = true)
     public AdminStatistics getAdminStatistics() {
         log.debug("Calculating admin statistics with parallel execution");
 
@@ -112,8 +112,8 @@ public class AdminAnalyticsService {
                     .totalCustomers(getLong(userStats, "totalCustomers"))
                     .totalSellers(getLong(userStats, "totalSellers"))
                     .totalDeliveryAgents(getLong(userStats, "totalDeliveryAgents"))
-                    .activeUsers(getLong(userStats, "activeUsers"))
-                    .newUsersThisMonth(getLong(userStats, "newUsersThisMonth"))
+                    .activeUsers(0L)
+                    .newUsersThisMonth(0L)
                     .totalProducts(getLong(productStats, "totalProducts"))
                     .activeProducts(getLong(productStats, "activeProducts"))
                     .outOfStockProducts(getLong(productStats, "outOfStockProducts"))
@@ -154,7 +154,7 @@ public class AdminAnalyticsService {
      * @param days number of days to include
      * @return daily sales data
      */
-    @Cacheable(value = "dailySalesData", key = "#days", unless = "#result == null || #result.isEmpty()")
+    @Cacheable(value = "dailySalesData", key = "#days", unless = "#result == null || #result.isEmpty()", sync = true)
     public List<Map<String, Object>> getDailySalesData(int days) {
         LocalDateTime endDate = LocalDateTime.now();
         LocalDateTime startDate = endDate.minusDays(days);
@@ -178,7 +178,7 @@ public class AdminAnalyticsService {
      * 
      * @return category revenue map
      */
-    @Cacheable(value = "revenueByCategory", unless = "#result == null || #result.isEmpty()")
+    @Cacheable(value = "revenueByCategory", unless = "#result == null || #result.isEmpty()", sync = true)
     public List<Map<String, Object>> getRevenueByCategory() {
         log.debug("Fetching revenue by category");
         return analyticsOrderRepository.getRevenueByCategory();

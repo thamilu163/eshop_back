@@ -26,6 +26,7 @@ public class ProductServiceImplSanitizationTest {
     private CategoryRepository categoryRepository;
     private BrandRepository brandRepository;
     private StoreRepository storeRepository;
+    private com.eshop.app.service.StoreService storeService;
     private TagRepository tagRepository;
     private OrderItemRepository orderItemRepository;
     private ProductMapper productMapper;
@@ -33,6 +34,7 @@ public class ProductServiceImplSanitizationTest {
     private ProductProperties productProperties;
     private ApplicationEventPublisher eventPublisher;
     private ProductServiceHelper helper;
+    private com.eshop.app.service.AttributeService attributeService;
 
     private ProductServiceImpl productService;
 
@@ -42,6 +44,7 @@ public class ProductServiceImplSanitizationTest {
         categoryRepository = mock(CategoryRepository.class);
         brandRepository = mock(BrandRepository.class);
         storeRepository = mock(StoreRepository.class);
+        storeService = mock(com.eshop.app.service.StoreService.class);
         tagRepository = mock(TagRepository.class);
         orderItemRepository = mock(OrderItemRepository.class);
         productMapper = mock(ProductMapper.class);
@@ -49,19 +52,22 @@ public class ProductServiceImplSanitizationTest {
         productProperties = mock(ProductProperties.class);
         eventPublisher = mock(ApplicationEventPublisher.class);
         helper = mock(ProductServiceHelper.class);
+        attributeService = mock(com.eshop.app.service.AttributeService.class);
 
         productService = new ProductServiceImpl(
                 productRepository,
                 categoryRepository,
                 brandRepository,
                 storeRepository,
+                storeService,
                 tagRepository,
                 orderItemRepository,
                 productMapper,
                 attributeValidatorService,
                 productProperties,
                 eventPublisher,
-                helper);
+                helper,
+                attributeService);
     }
 
     @Test
@@ -88,16 +94,21 @@ public class ProductServiceImplSanitizationTest {
 
         // Helper should build the Product; if not stubbed it returns null causing NPE
         when(helper.resolveOrCreateTags(any())).thenReturn(new java.util.HashSet<>());
+        // Mock the sanitize method to behave like the real one for the test
+        when(helper.sanitize(any())).thenAnswer(invocation -> {
+            String s = invocation.getArgument(0);
+            return s == null ? null : org.springframework.web.util.HtmlUtils.htmlEscape(s);
+        });
+
         when(helper.buildProductFromRequest(any(), any(), any(), any(), any())).thenAnswer(invocation -> {
             ProductCreateRequest r = (ProductCreateRequest) invocation.getArgument(0);
             Product p = new Product();
             p.setName(r.getName());
             p.setSku(r.getSku());
             p.setPrice(r.getPrice());
-            // Simulate sanitizer behavior used in service (HtmlUtils.htmlEscape)
-            String desc = r.getDescription() == null ? null
-                    : org.springframework.web.util.HtmlUtils.htmlEscape(r.getDescription());
-            p.setDescription(desc);
+            // Use the sanitized description from the request as it would be in the real
+            // flow
+            p.setDescription(helper.sanitize(r.getDescription()));
             p.setCategory((Category) invocation.getArgument(1));
             p.setStore((Store) invocation.getArgument(2));
             return p;

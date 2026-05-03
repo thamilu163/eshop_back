@@ -47,6 +47,8 @@ public class ProductCreateWithCategoryRequest {
     @Pattern(regexp = "^[A-Z0-9\\-]*$", message = "SKU must be uppercase alphanumeric")
     private String sku;
 
+    private java.util.Map<String, String> attributes;
+
     // Business logic helper
     public boolean hasExistingCategory() {
         return categoryId != null;

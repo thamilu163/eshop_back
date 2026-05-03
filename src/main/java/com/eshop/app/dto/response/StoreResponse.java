@@ -16,7 +16,15 @@ public class StoreResponse {
     private Long id;
     private String storeName;
     private String description;
+    private String addressLine1;
+    private String addressLine2;
+    private String city;
+    private String district;
+    private String state;
+    private String country;
+    private String pincode;
     private String address;
+    private String googleMapsUrl;
     private String phone;
     private String email;
     private String logoUrl;

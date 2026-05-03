@@ -18,7 +18,7 @@ import com.eshop.app.constants.ApiConstants;
  * Cart Controller - Simple cart management for authenticated users
  * Handles basic cart operations with JWT authentication
  */
-@Tag(name = "Cart", description = "Shopping cart management endpoints for authenticated users (CUSTOMER, ADMIN)")
+@Tag(name = "Carts", description = "Shopping cart management for authenticated users (CUSTOMER, ADMIN)")
 @RestController
 @RequestMapping(ApiConstants.Endpoints.CART)
 @PreAuthorize("hasAnyRole('CUSTOMER', 'ADMIN')")

@@ -22,17 +22,26 @@ public final class SecurityUtils {
     }
 
     public static Optional<String> getCurrentUserId() {
-        return getCurrentAuthentication()
-                .filter(auth -> auth.getPrincipal() instanceof Jwt)
-                .map(auth -> (Jwt) auth.getPrincipal())
-                .map(jwt -> jwt.getClaimAsString("sub"));
+        return getCurrentAuthentication().map(auth -> {
+            Object principal = auth.getPrincipal();
+            if (principal instanceof com.eshop.app.security.PrincipalDetails pd) {
+                return pd.getKeycloakId();
+            }
+            if (principal instanceof Jwt jwt) {
+                return jwt.getSubject();
+            }
+            return null;
+        }).filter(id -> id != null && !id.isBlank());
     }
 
     public static Optional<String> getCurrentUsername() {
-        return getCurrentAuthentication()
-                .filter(auth -> auth.getPrincipal() instanceof Jwt)
-                .map(auth -> (Jwt) auth.getPrincipal())
-                .map(jwt -> jwt.getClaimAsString("preferred_username"));
+        return getCurrentAuthentication().map(auth -> {
+            Object principal = auth.getPrincipal();
+            if (principal instanceof com.eshop.app.security.PrincipalDetails pd) {
+                return pd.getUsername();
+            }
+            return getCurrentJwt().map(jwt -> jwt.getClaimAsString("preferred_username")).orElse(null);
+        }).filter(u -> u != null && !u.isBlank());
     }
 
     public static boolean hasRole(String role) {
@@ -66,10 +75,8 @@ public final class SecurityUtils {
         return getCurrentAuthentication()
                 .map(auth -> {
                     Object principal = auth.getPrincipal();
-                    if (principal instanceof com.eshop.app.config.EnhancedSecurityConfig.PrincipalDetails pd) {
+                    if (principal instanceof com.eshop.app.security.PrincipalDetails pd) {
                         return pd.getId();
-                    } else if (principal instanceof com.eshop.app.security.UserDetailsImpl ud) {
-                        return ud.getId();
                     } else if (principal instanceof Jwt jwt) {
                         // Fallback: try to parse subject as Long if no specific principal object
                         try {
@@ -85,9 +92,20 @@ public final class SecurityUtils {
     }
 
     public static Optional<Jwt> getCurrentJwt() {
-        return getCurrentAuthentication()
-                .filter(auth -> auth.getPrincipal() instanceof Jwt)
-                .map(auth -> (Jwt) auth.getPrincipal());
+        return getCurrentAuthentication().flatMap(auth -> {
+            Object principal = auth.getPrincipal();
+            if (principal instanceof Jwt jwt) {
+                return Optional.of(jwt);
+            }
+            Object credentials = auth.getCredentials();
+            if (credentials instanceof Jwt jwt) {
+                return Optional.of(jwt);
+            }
+            if (auth instanceof org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken token) {
+                return Optional.ofNullable(token.getToken());
+            }
+            return Optional.empty();
+        });
     }
 
 }

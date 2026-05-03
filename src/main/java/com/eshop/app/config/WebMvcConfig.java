@@ -33,6 +33,11 @@ public class WebMvcConfig implements WebMvcConfigurer {
         registry.addResourceHandler("/static/**")
                 .addResourceLocations("classpath:/static/")
                 .resourceChain(true);
+        
+        // Handle uploaded product images (Local Storage)
+        registry.addResourceHandler("/uploads/**")
+                .addResourceLocations("file:./uploads/")
+                .resourceChain(false);
     }
 
     @Override

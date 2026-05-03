@@ -8,6 +8,8 @@ import com.eshop.app.dto.response.PageResponse;
 import com.eshop.app.exception.InvalidParameterException;
 import com.eshop.app.service.CategoryService;
 import com.eshop.app.constants.ApiConstants;
+import com.eshop.app.util.ControllerResponseUtils;
+import com.eshop.app.util.PaginationUtils;
 import io.micrometer.core.annotation.Timed;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -17,7 +19,6 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.*;
@@ -70,9 +71,7 @@ public class CategoryController {
         
         log.info("Category created: id={}, name={}", response.getId(), response.getName());
         
-        return ResponseEntity
-            .status(HttpStatus.CREATED)
-            .body(ApiResponse.success("Category created successfully", response));
+        return ControllerResponseUtils.created("Category created successfully", response);
     }
     
     @PutMapping("/{id}")
@@ -95,7 +94,7 @@ public class CategoryController {
         
         log.info("Category updated: id={}, name={}", response.getId(), response.getName());
         
-        return ResponseEntity.ok(ApiResponse.success("Category updated successfully", response));
+        return ControllerResponseUtils.ok("Category updated successfully", response);
     }
     
     @DeleteMapping("/{id}")
@@ -124,7 +123,7 @@ public class CategoryController {
         
         log.info("Category deleted: id={}", id);
         
-        return ResponseEntity.ok(ApiResponse.success("Category deleted successfully", null));
+        return ControllerResponseUtils.ok("Category deleted successfully", null);
     }
     
     @PostMapping("/{id}/restore")
@@ -140,7 +139,7 @@ public class CategoryController {
         log.info("Admin '{}' restoring category: id={}", userDetails.getUsername(), id);
         
         CategoryResponse response = categoryService.restoreCategory(id);
-        return ResponseEntity.ok(ApiResponse.success("Category restored successfully", response));
+        return ControllerResponseUtils.ok("Category restored successfully", response);
     }
     
     @PostMapping("/bulk")
@@ -157,8 +156,7 @@ public class CategoryController {
         log.info("Admin '{}' creating {} categories", userDetails.getUsername(), requests.size());
         
         List<CategoryResponse> responses = categoryService.createCategories(requests);
-        return ResponseEntity.status(HttpStatus.CREATED)
-            .body(ApiResponse.success("Categories created successfully", responses));
+        return ControllerResponseUtils.created("Categories created successfully", responses);
     }
     
     // ==================== PUBLIC READ OPERATIONS ====================
@@ -206,7 +204,7 @@ public class CategoryController {
 
         Sort.Direction direction = Sort.Direction.fromOptionalString(sortDirection)
             .orElse(Sort.Direction.ASC);
-        Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortBy));
+        Pageable pageable = PaginationUtils.createPageable(page, size, sortBy, direction);
         
         PageResponse<CategoryResponse> response = categoryService.getAllCategories(pageable);
         
@@ -230,7 +228,7 @@ public class CategoryController {
         log.debug("Searching categories with keyword: '{}'", sanitizedKeyword);
 
         // Let the service decide on how to apply the wildcard search; pass sanitized input only.
-        Pageable pageable = PageRequest.of(page, size, Sort.by("name"));
+        Pageable pageable = PaginationUtils.createPageableWithFieldDesc(page, size, "name");
         PageResponse<CategoryResponse> response =
             categoryService.searchCategories(sanitizedKeyword, pageable);
         
@@ -257,7 +255,7 @@ public class CategoryController {
     public ResponseEntity<ApiResponse<List<CategoryResponse>>> getSubcategories(
             @PathVariable @Positive Long id) {
         List<CategoryResponse> subcategories = categoryService.getSubcategories(id);
-        return ResponseEntity.ok(ApiResponse.success(subcategories));
+        return ControllerResponseUtils.ok(subcategories);
     }
     
     @GetMapping("/{id}/path")
@@ -265,7 +263,7 @@ public class CategoryController {
     public ResponseEntity<ApiResponse<List<CategoryResponse>>> getCategoryPath(
             @PathVariable @Positive Long id) {
         List<CategoryResponse> path = categoryService.getCategoryPath(id);
-        return ResponseEntity.ok(ApiResponse.success(path));
+        return ControllerResponseUtils.ok(path);
     }
     
     @GetMapping("/roots")

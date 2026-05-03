@@ -1,7 +1,10 @@
 package com.eshop.app.service;
 
 import com.eshop.app.dto.response.HomeResponse;
+import com.eshop.app.entity.SellerProfile;
+import com.eshop.app.entity.Store;
 import com.eshop.app.entity.User;
+import com.eshop.app.entity.UserProfile;
 import com.eshop.app.enums.UserRole;
 import com.eshop.app.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -10,6 +13,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -31,39 +36,44 @@ class HomeServiceTest {
     void setUp() {
         // Admin User
         adminUser = User.builder()
-                .username("admin@eshop.com")
-                .firstName("Admin")
-                .lastName("User")
+                .keycloakId("admin-uuid")
                 .role(UserRole.ADMIN)
-            .active(true)
                 .build();
+        adminUser.setUserProfile(UserProfile.builder().firstName("Admin").lastName("User").user(adminUser).build());
 
         // Seller User
         sellerUser = User.builder()
-                .username("seller@eshop.com")
-                .firstName("Seller")
-                .lastName("User")
+                .keycloakId("seller-uuid")
                 .role(UserRole.SELLER)
-            .active(true)
                 .build();
+        sellerUser.setUserProfile(UserProfile.builder().firstName("Seller").lastName("User").user(sellerUser).build());
+
+        SellerProfile sellerProfile = SellerProfile.builder()
+                .user(sellerUser)
+                .build();
+        Store store = Store.builder()
+                .storeName("Test Store")
+                .active(true)
+                .sellerProfile(sellerProfile)
+                .build();
+        sellerProfile.setStores(java.util.Set.of(store));
+        sellerUser.setSellerProfile(sellerProfile);
 
         // Customer User
         customerUser = User.builder()
-                .username("customer@eshop.com")
-                .firstName("Customer")
-                .lastName("User")
+                .keycloakId("customer-uuid")
                 .role(UserRole.CUSTOMER)
-            .active(true)
                 .build();
+        customerUser.setUserProfile(
+                UserProfile.builder().firstName("Customer").lastName("User").user(customerUser).build());
 
         // Delivery Agent User
         deliveryAgentUser = User.builder()
-                .username("delivery@eshop.com")
-                .firstName("Delivery")
-                .lastName("Agent")
+                .keycloakId("delivery-uuid")
                 .role(UserRole.DELIVERY_AGENT)
-            .active(true)
                 .build();
+        deliveryAgentUser.setUserProfile(
+                UserProfile.builder().firstName("Delivery").lastName("Agent").user(deliveryAgentUser).build());
     }
 
     @Test
@@ -93,12 +103,12 @@ class HomeServiceTest {
         assertEquals("Welcome to Admin Dashboard", response.getMessage());
         assertTrue(response.getAvailableActions().contains("Manage Users"));
         assertTrue(response.getAvailableActions().contains("Manage Products"));
-        assertTrue(response.getAvailableActions().contains("Manage Shops"));
+        assertTrue(response.getAvailableActions().contains("Manage Stores"));
         assertTrue(response.getAvailableActions().contains("View Analytics"));
         assertTrue(response.getAvailableActions().contains("System Settings"));
         assertTrue(response.getQuickLinks().containsKey("users"));
         assertTrue(response.getQuickLinks().containsKey("products"));
-        assertTrue(response.getQuickLinks().containsKey("shops"));
+        assertTrue(response.getQuickLinks().containsKey("stores"));
     }
 
     @Test
@@ -113,7 +123,7 @@ class HomeServiceTest {
         assertEquals("Welcome to Seller Dashboard", response.getMessage());
         assertTrue(response.getAvailableActions().contains("Manage Products"));
         assertTrue(response.getAvailableActions().contains("View Orders"));
-        assertTrue(response.getAvailableActions().contains("Shop Settings"));
+        assertTrue(response.getAvailableActions().contains("Store Settings"));
         assertTrue(response.getAvailableActions().contains("Sales Analytics"));
         assertTrue(response.getAvailableActions().contains("Customer Reviews"));
         assertTrue(response.getQuickLinks().containsKey("myProducts"));
